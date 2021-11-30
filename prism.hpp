@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
+#include <array>
 
 class SourceNode {
 	std::size_t length;
@@ -24,6 +25,44 @@ public:
 class LanguageNode {
 public:
 	virtual std::unique_ptr<SourceNode> match(const char*& c) = 0;
+};
+
+class CharacterClass: public LanguageNode {
+	std::array<unsigned char, 256 / 8> characters;
+public:
+	CharacterClass() {
+		for (unsigned int i = 0; i < 256 / 8; ++i) {
+			characters[i] = 0;
+		}
+	}
+	void set(unsigned char c) {
+		const unsigned int byte_index = c / 8;
+		const unsigned int bit_index = c % 8;
+		characters[byte_index] |= 1 << bit_index;
+	}
+	void set_range(unsigned char first, unsigned char last) {
+		for (unsigned int i = first; i <= last; ++i) {
+			set(i);
+		}
+	}
+	void invert() {
+		for (unsigned int i = 0; i < 256 / 8; ++i) {
+			characters[i] = ~characters[i];
+		}
+	}
+	bool check(unsigned char c) const {
+		const unsigned int byte_index = c / 8;
+		const unsigned int bit_index = c % 8;
+		return characters[byte_index] & 1 << bit_index;
+	}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		if (*c && check(*c)) {
+			++c;
+			return std::make_unique<SourceNode>(c - begin);
+		}
+		return nullptr;
+	}
 };
 
 class Range: public LanguageNode {
@@ -111,19 +150,23 @@ public:
 	}
 };
 
-inline std::unique_ptr<Range> range(char first, char last) {
-	return std::make_unique<Range>(first, last);
+inline std::unique_ptr<LanguageNode> range(char first, char last) {
+	auto result = std::make_unique<CharacterClass>();
+	result->set_range(first, last);
+	return result;
 }
 
-inline std::unique_ptr<Range> character(char c) {
-	return std::make_unique<Range>(c, c);
+inline std::unique_ptr<LanguageNode> character(char c) {
+	return range(c, c);
 }
 
-inline std::unique_ptr<Range> any_character() {
-	return std::make_unique<Range>(1, 127);
+inline std::unique_ptr<LanguageNode> any_character() {
+	auto result = std::make_unique<CharacterClass>();
+	result->invert();
+	return result;
 }
 
-inline std::unique_ptr<Sequence> string(const char* s) {
+inline std::unique_ptr<LanguageNode> string(const char* s) {
 	auto result = std::make_unique<Sequence>();
 	for (; *s; ++s) {
 		result->add_child(character(*s));
@@ -131,22 +174,22 @@ inline std::unique_ptr<Sequence> string(const char* s) {
 	return result;
 }
 
-template <class... A> std::unique_ptr<Sequence> sequence(A&&... children) {
+template <class... A> std::unique_ptr<LanguageNode> sequence(A&&... children) {
 	auto result = std::make_unique<Sequence>();
 	(result->add_child(std::forward<A>(children)), ...);
 	return result;
 }
 
-template <class... A> std::unique_ptr<Choice> choice(A&&... children) {
+template <class... A> std::unique_ptr<LanguageNode> choice(A&&... children) {
 	auto result = std::make_unique<Choice>();
 	(result->add_child(std::forward<A>(children)), ...);
 	return result;
 }
 
-inline std::unique_ptr<Repetition> repetition(std::unique_ptr<LanguageNode>&& child) {
+inline std::unique_ptr<LanguageNode> repetition(std::unique_ptr<LanguageNode>&& child) {
 	return std::make_unique<Repetition>(std::move(child));
 }
 
-inline std::unique_ptr<Highlight> highlight(int style, std::unique_ptr<LanguageNode>&& child) {
+inline std::unique_ptr<LanguageNode> highlight(int style, std::unique_ptr<LanguageNode>&& child) {
 	return std::make_unique<Highlight>(style, std::move(child));
 }
