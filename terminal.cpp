@@ -1,7 +1,6 @@
 #include "prism.hpp"
 #include <fstream>
 #include <vector>
-
 #include <iostream>
 
 class Color {
@@ -49,8 +48,9 @@ public:
 constexpr Style styles[] = {
 	Style(Color(0x00, 0x00, 0x00)),
 	Style(Color(0xCC, 0x33, 0x33), true),
-	Style(Color(0x00, 0x99, 0x99), true),
-	Style(Color(0x66, 0x00, 0xCC), false),
+	Style(Color(0x33, 0x66, 0x66), true),
+	Style(Color(0x66, 0x00, 0x99), false),
+	Style(Color(0x66, 0x66, 0x66), false, true),
 };
 
 const auto language = repetition(choice(

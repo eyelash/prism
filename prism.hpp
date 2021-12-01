@@ -10,6 +10,9 @@ class SourceNode {
 	int style;
 public:
 	SourceNode(std::size_t length, int style = 0): length(length), style(style) {}
+	SourceNode(std::size_t length, std::unique_ptr<SourceNode>&& child, int style = 0): length(length), style(style) {
+		children.emplace_back(std::move(child));
+	}
 	SourceNode(std::size_t length, std::vector<std::unique_ptr<SourceNode>>&& children, int style = 0): length(length), children(std::move(children)), style(style) {}
 	std::size_t get_length() const {
 		return length;
@@ -35,14 +38,14 @@ public:
 			characters[i] = 0;
 		}
 	}
-	void set(unsigned char c) {
+	void add_character(unsigned char c) {
 		const unsigned int byte_index = c / 8;
 		const unsigned int bit_index = c % 8;
 		characters[byte_index] |= 1 << bit_index;
 	}
-	void set_range(unsigned char first, unsigned char last) {
+	void add_range(unsigned char first, unsigned char last) {
 		for (unsigned int i = first; i <= last; ++i) {
-			set(i);
+			add_character(i);
 		}
 	}
 	void invert() {
@@ -58,21 +61,6 @@ public:
 	std::unique_ptr<SourceNode> match(const char*& c) override {
 		const char* begin = c;
 		if (*c && check(*c)) {
-			++c;
-			return std::make_unique<SourceNode>(c - begin);
-		}
-		return nullptr;
-	}
-};
-
-class Range: public LanguageNode {
-	char first;
-	char last;
-public:
-	Range(char first, char last): first(first), last(last) {}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		if (*c >= first && *c <= last) {
-			const char* begin = c;
 			++c;
 			return std::make_unique<SourceNode>(c - begin);
 		}
@@ -140,9 +128,7 @@ public:
 	std::unique_ptr<SourceNode> match(const char*& c) override {
 		const char* begin = c;
 		if (auto source_node = child->match(c)) {
-			std::vector<std::unique_ptr<SourceNode>> source_children;
-			source_children.emplace_back(std::move(source_node));
-			return std::make_unique<SourceNode>(c - begin, std::move(source_children), style);
+			return std::make_unique<SourceNode>(c - begin, std::move(source_node), style);
 		}
 		else {
 			return nullptr; 
@@ -150,20 +136,38 @@ public:
 	}
 };
 
-inline std::unique_ptr<LanguageNode> range(char first, char last) {
+inline auto invert = [](CharacterClass& cc) {
+	cc.invert();
+};
+
+inline auto add_character(char c) {
+	return [=](CharacterClass& cc) {
+		cc.add_character(c);
+	};
+}
+
+inline auto add_range(char first, char last) {
+	return [=](CharacterClass& cc) {
+		cc.add_range(first, last);
+	};
+}
+
+template <class... A> std::unique_ptr<LanguageNode> character_class(A... arguments) {
 	auto result = std::make_unique<CharacterClass>();
-	result->set_range(first, last);
+	(arguments(*result), ...);
 	return result;
 }
 
 inline std::unique_ptr<LanguageNode> character(char c) {
-	return range(c, c);
+	return character_class(add_character(c));
+}
+
+inline std::unique_ptr<LanguageNode> range(char first, char last) {
+	return character_class(add_range(first, last));
 }
 
 inline std::unique_ptr<LanguageNode> any_character() {
-	auto result = std::make_unique<CharacterClass>();
-	result->invert();
-	return result;
+	return character_class(invert);
 }
 
 inline std::unique_ptr<LanguageNode> string(const char* s) {
