@@ -136,6 +136,15 @@ public:
 	}
 };
 
+class Reference: public LanguageNode {
+	std::unique_ptr<LanguageNode>& node;
+public:
+	Reference(std::unique_ptr<LanguageNode>& node): node(node) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		return node->match(c);
+	}
+};
+
 class Highlight: public LanguageNode {
 	int style;
 	std::unique_ptr<LanguageNode> child;
@@ -212,6 +221,10 @@ inline std::unique_ptr<LanguageNode> repetition(std::unique_ptr<LanguageNode>&& 
 
 inline std::unique_ptr<LanguageNode> not_(std::unique_ptr<LanguageNode>&& child) {
 	return std::make_unique<Not>(std::move(child));
+}
+
+inline std::unique_ptr<LanguageNode> reference(std::unique_ptr<LanguageNode>& node) {
+	return std::make_unique<Reference>(node);
 }
 
 inline std::unique_ptr<LanguageNode> highlight(int style, std::unique_ptr<LanguageNode>&& child) {
