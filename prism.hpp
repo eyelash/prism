@@ -120,6 +120,22 @@ public:
 	}
 };
 
+class Not: public LanguageNode {
+	std::unique_ptr<LanguageNode> child;
+public:
+	Not(std::unique_ptr<LanguageNode>&& child): child(std::move(child)) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		if (child->match(c)) {
+			c = begin;
+			return nullptr;
+		}
+		else {
+			return std::make_unique<SourceNode>(0);
+		}
+	}
+};
+
 class Highlight: public LanguageNode {
 	int style;
 	std::unique_ptr<LanguageNode> child;
@@ -192,6 +208,10 @@ template <class... A> std::unique_ptr<LanguageNode> choice(A&&... children) {
 
 inline std::unique_ptr<LanguageNode> repetition(std::unique_ptr<LanguageNode>&& child) {
 	return std::make_unique<Repetition>(std::move(child));
+}
+
+inline std::unique_ptr<LanguageNode> not_(std::unique_ptr<LanguageNode>&& child) {
+	return std::make_unique<Not>(std::move(child));
 }
 
 inline std::unique_ptr<LanguageNode> highlight(int style, std::unique_ptr<LanguageNode>&& child) {
