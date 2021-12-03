@@ -108,13 +108,29 @@ public:
 
 class Repetition: public LanguageNode {
 	std::unique_ptr<LanguageNode> child;
+	unsigned int min_repetitions;
+	unsigned int max_repetitions;
 public:
-	Repetition(std::unique_ptr<LanguageNode>&& child): child(std::move(child)) {}
+	Repetition(std::unique_ptr<LanguageNode>&& child, unsigned int min_repetitions = 0, unsigned int max_repetitions = -1): child(std::move(child)), min_repetitions(min_repetitions), max_repetitions(max_repetitions) {}
 	std::unique_ptr<SourceNode> match(const char*& c) override {
 		const char* begin = c;
 		std::vector<std::unique_ptr<SourceNode>> source_children;
-		while (auto source_node = child->match(c)) {
-			source_children.emplace_back(std::move(source_node));
+		for (unsigned int i = 0; i < min_repetitions; ++i) {
+			if (auto source_node = child->match(c)) {
+				source_children.emplace_back(std::move(source_node));
+			}
+			else {
+				c = begin;
+				return nullptr;
+			}
+		}
+		for (unsigned int i = min_repetitions; i < max_repetitions; ++i) {
+			if (auto source_node = child->match(c)) {
+				source_children.emplace_back(std::move(source_node));
+			}
+			else {
+				break;
+			}
 		}
 		return std::make_unique<SourceNode>(c - begin, std::move(source_children));
 	}
@@ -213,6 +229,18 @@ template <class... A> std::unique_ptr<LanguageNode> choice(A&&... children) {
 	auto result = std::make_unique<Choice>();
 	(result->add_child(std::forward<A>(children)), ...);
 	return result;
+}
+
+inline std::unique_ptr<LanguageNode> optional(std::unique_ptr<LanguageNode>&& child) {
+	return std::make_unique<Repetition>(std::move(child), 0, 1);
+}
+
+inline std::unique_ptr<LanguageNode> zero_or_more(std::unique_ptr<LanguageNode>&& child) {
+	return std::make_unique<Repetition>(std::move(child), 0);
+}
+
+inline std::unique_ptr<LanguageNode> one_or_more(std::unique_ptr<LanguageNode>&& child) {
+	return std::make_unique<Repetition>(std::move(child), 1);
 }
 
 inline std::unique_ptr<LanguageNode> repetition(std::unique_ptr<LanguageNode>&& child) {
