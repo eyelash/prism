@@ -1,4 +1,5 @@
 #include "prism.hpp"
+#include "c.hpp"
 #include <fstream>
 #include <vector>
 #include <iostream>
@@ -53,21 +54,6 @@ constexpr Style styles[] = {
 	Style(Color(0x66, 0x66, 0x66), false, true),
 };
 
-const auto language = repetition(choice(
-	highlight(1, choice(
-		string("return"),
-		string("if"),
-		string("else")
-	)),
-	highlight(2, choice(
-		string("void"),
-		string("int")
-	)),
-	highlight(3, sequence(range('0', '9'), repetition(range('0', '9')))),
-	sequence(choice(range('a', 'z'), character('_')), repetition(choice(range('a', 'z'), range('0', '9')))),
-	any_character()
-));
-
 static void print(const char* source, const std::unique_ptr<SourceNode>& node, int outer_style = 0) {
 	int style = node->get_style() ? node->get_style() : outer_style;
 	if (style != outer_style) {
@@ -99,9 +85,10 @@ static std::vector<char> read_file(const char* file_name) {
 
 int main(int argc, const char** argv) {
 	if (argc > 1) {
+		CLanguage language;
 		auto source = read_file(argv[1]);
 		const char* c = source.data();
-		auto source_tree = language->match(c);
+		auto source_tree = language.language->match(c);
 		Style::set_background_color(Color(0xFF, 0xFF, 0xFF));
 		print(source.data(), source_tree);
 		Style::clear();
