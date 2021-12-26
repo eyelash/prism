@@ -1,43 +1,27 @@
 #include "prism.hpp"
 #include "c.hpp"
+#include "one_dark.hpp"
 #include <fstream>
 #include <vector>
 #include <iostream>
 
-class Color {
-	unsigned char red;
-	unsigned char green;
-	unsigned char blue;
-public:
-	constexpr Color(unsigned char red, unsigned char green, unsigned char blue): red(red), green(green), blue(blue) {}
-	constexpr unsigned int get_red() const {
-		return red;
-	}
-	constexpr unsigned int get_green() const {
-		return green;
-	}
-	constexpr unsigned int get_blue() const {
-		return blue;
-	}
-};
-
 class Style {
-	Color color;
+	less::Color color;
 	bool bold;
 	bool italic;
 public:
-	constexpr Style(Color color, bool bold = false, bool italic = false): color(color), bold(bold), italic(italic) {}
-	static void set_background_color(Color color) {
+	Style(const less::Color& color, bool bold = false, bool italic = false): color(color), bold(bold), italic(italic) {}
+	static void set_background_color(const less::Color& color) {
 		std::cout << "\e[48;2;"
-			<< color.get_red() << ";"
-			<< color.get_green() << ";"
-			<< color.get_blue() << "m";
+			<< std::round(less::red(color)) << ";"
+			<< std::round(less::green(color)) << ";"
+			<< std::round(less::blue(color)) << "m";
 	}
 	void apply() const {
 		std::cout << "\e[38;2;"
-			<< color.get_red() << ";"
-			<< color.get_green() << ";"
-			<< color.get_blue() << ";"
+			<< std::round(less::red(color)) << ";"
+			<< std::round(less::green(color)) << ";"
+			<< std::round(less::blue(color)) << ";"
 			<< (bold ? 1 : 22) << ";"
 			<< (italic ? 3 : 23) << "m";
 	}
@@ -46,12 +30,12 @@ public:
 	}
 };
 
-constexpr Style styles[] = {
-	Style(Color(0x00, 0x00, 0x00)),
-	Style(Color(0xCC, 0x33, 0x33), true),
-	Style(Color(0x33, 0x66, 0x66), true),
-	Style(Color(0x66, 0x00, 0x99), false),
-	Style(Color(0x66, 0x66, 0x66), false, true),
+const Style styles[] = {
+	Style(one_dark::syntax_fg),
+	Style(one_dark::hue_3, false),
+	Style(one_dark::hue_1, false),
+	Style(one_dark::hue_6, false),
+	Style(one_dark::mono_3, false, true),
 };
 
 static void print(const char* source, const std::unique_ptr<SourceNode>& node, int outer_style = 0) {
@@ -89,7 +73,7 @@ int main(int argc, const char** argv) {
 		auto source = read_file(argv[1]);
 		const char* c = source.data();
 		auto source_tree = language.language->match(c);
-		Style::set_background_color(Color(0xFF, 0xFF, 0xFF));
+		Style::set_background_color(one_dark::syntax_bg);
 		print(source.data(), source_tree);
 		Style::clear();
 	}
