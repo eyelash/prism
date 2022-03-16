@@ -219,42 +219,54 @@ inline std::unique_ptr<LanguageNode> string(const char* s) {
 	return result;
 }
 
+inline std::unique_ptr<LanguageNode> get_language_node(char c) {
+	return character(c);
+}
+
+inline std::unique_ptr<LanguageNode> get_language_node(const char* s) {
+	return string(s);
+}
+
+inline std::unique_ptr<LanguageNode> get_language_node(std::unique_ptr<LanguageNode>&& language_node) {
+	return std::move(language_node);
+}
+
 template <class... A> std::unique_ptr<LanguageNode> sequence(A&&... children) {
 	auto result = std::make_unique<Sequence>();
-	(result->add_child(std::forward<A>(children)), ...);
+	(result->add_child(get_language_node(std::forward<A>(children))), ...);
 	return result;
 }
 
 template <class... A> std::unique_ptr<LanguageNode> choice(A&&... children) {
 	auto result = std::make_unique<Choice>();
-	(result->add_child(std::forward<A>(children)), ...);
+	(result->add_child(get_language_node(std::forward<A>(children))), ...);
 	return result;
 }
 
-inline std::unique_ptr<LanguageNode> optional(std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Repetition>(std::move(child), 0, 1);
+template <class A> std::unique_ptr<LanguageNode> optional(A&& child) {
+	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 0, 1);
 }
 
-inline std::unique_ptr<LanguageNode> zero_or_more(std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Repetition>(std::move(child), 0);
+template <class A> std::unique_ptr<LanguageNode> zero_or_more(A&& child) {
+	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 0);
 }
 
-inline std::unique_ptr<LanguageNode> one_or_more(std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Repetition>(std::move(child), 1);
+template <class A> std::unique_ptr<LanguageNode> one_or_more(A&& child) {
+	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 1);
 }
 
-inline std::unique_ptr<LanguageNode> repetition(std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Repetition>(std::move(child));
+template <class A> std::unique_ptr<LanguageNode> repetition(A&& child) {
+	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)));
 }
 
-inline std::unique_ptr<LanguageNode> not_(std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Not>(std::move(child));
+template <class A> std::unique_ptr<LanguageNode> not_(A&& child) {
+	return std::make_unique<Not>(get_language_node(std::forward<A>(child)));
 }
 
 inline std::unique_ptr<LanguageNode> reference(std::unique_ptr<LanguageNode>& node) {
 	return std::make_unique<Reference>(node);
 }
 
-inline std::unique_ptr<LanguageNode> highlight(int style, std::unique_ptr<LanguageNode>&& child) {
-	return std::make_unique<Highlight>(style, std::move(child));
+template <class A> std::unique_ptr<LanguageNode> highlight(int style, A&& child) {
+	return std::make_unique<Highlight>(style, get_language_node(std::forward<A>(child)));
 }

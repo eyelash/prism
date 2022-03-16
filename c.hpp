@@ -2,61 +2,61 @@
 
 #include "prism.hpp"
 
-inline std::unique_ptr<LanguageNode> any_character_but(std::unique_ptr<LanguageNode>&& child) {
-	return sequence(not_(std::move(child)), any_character());
+template <class A> std::unique_ptr<LanguageNode> any_character_but(A&& child) {
+	return sequence(not_(std::forward<A>(child)), any_character());
 }
 
 class CLanguage {
-	std::unique_ptr<LanguageNode> identifier_begin_character = choice(range('a', 'z'), range('A', 'Z'), character('_'));
-	std::unique_ptr<LanguageNode> identifier_character = choice(range('a', 'z'), range('A', 'Z'), character('_'), range('0', '9'));
+	std::unique_ptr<LanguageNode> identifier_begin_character = choice(range('a', 'z'), range('A', 'Z'), '_');
+	std::unique_ptr<LanguageNode> identifier_character = choice(range('a', 'z'), range('A', 'Z'), '_', range('0', '9'));
 	std::unique_ptr<LanguageNode> hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
-	std::unique_ptr<LanguageNode> escape = sequence(character('\\'), any_character());
+	std::unique_ptr<LanguageNode> escape = sequence('\\', any_character());
 	std::unique_ptr<LanguageNode> keyword(const char* s) {
-		return sequence(string(s), not_(reference(identifier_character)));
+		return sequence(s, not_(reference(identifier_character)));
 	}
 public:
 	std::unique_ptr<LanguageNode> language = repetition(choice(
 		// comments
 		highlight(4, choice(
-			sequence(string("/*"), repetition(any_character_but(string("*/"))), optional(string("*/"))),
-			sequence(string("//"), repetition(any_character_but(character('\n'))))
+			sequence("/*", repetition(any_character_but("*/")), optional("*/")),
+			sequence("//", repetition(any_character_but('\n')))
 		)),
 		// strings
-		highlight(3, sequence(character('"'), repetition(choice(reference(escape), any_character_but(character('"')))), optional(character('"')))),
-		highlight(3, sequence(character('\''), choice(reference(escape), any_character_but(character('\''))), character('\''))),
+		highlight(3, sequence('"', repetition(choice(reference(escape), any_character_but('"'))), optional('"'))),
+		highlight(3, sequence('\'', choice(reference(escape), any_character_but('\'')), '\'')),
 		// numbers
 		highlight(3, sequence(
 			choice(
 				// hex
 				sequence(
-					character('0'),
-					choice(character('x'), character('X')),
+					'0',
+					choice('x', 'X'),
 					zero_or_more(reference(hex_digit)),
-					optional(character('.')),
+					optional('.'),
 					zero_or_more(reference(hex_digit)),
 					// exponent
 					optional(sequence(
-						choice(character('p'), character('P')),
-						optional(choice(character('+'), character('-'))),
+						choice('p', 'P'),
+						optional(choice('+', '-')),
 						one_or_more(range('0', '9'))
 					))
 				),
 				// decimal
 				sequence(
 					choice(
-						sequence(one_or_more(range('0', '9')), optional(character('.')), zero_or_more(range('0', '9'))),
-						sequence(character('.'), one_or_more(range('0', '9')))
+						sequence(one_or_more(range('0', '9')), optional('.'), zero_or_more(range('0', '9'))),
+						sequence('.', one_or_more(range('0', '9')))
 					),
 					// exponent
 					optional(sequence(
-						choice(character('e'), character('E')),
-						optional(choice(character('+'), character('-'))),
+						choice('e', 'E'),
+						optional(choice('+', '-')),
 						one_or_more(range('0', '9'))
 					))
 				)
 			),
 			// suffix
-			zero_or_more(choice(character('u'), character('U'), character('l'), character('L'), character('f'), character('F')))
+			zero_or_more(choice('u', 'U', 'l', 'L', 'f', 'F'))
 		)),
 		highlight(3, one_or_more(range('0', '9'))),
 		// keywords
@@ -93,7 +93,7 @@ public:
 			keyword("signed")
 		)),
 		// preprocessor
-		highlight(1, sequence(character('#'), repetition(reference(identifier_character)))),
+		highlight(1, sequence('#', repetition(reference(identifier_character)))),
 		// identifiers
 		sequence(reference(identifier_begin_character), repetition(reference(identifier_character))),
 		any_character()
