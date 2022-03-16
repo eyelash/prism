@@ -7,12 +7,12 @@ inline std::unique_ptr<LanguageNode> any_character_but(std::unique_ptr<LanguageN
 }
 
 class CLanguage {
-	std::unique_ptr<LanguageNode> identifier_begin = character_class(add_range('a', 'z'), add_range('A', 'Z'), add_character('_'));
-	std::unique_ptr<LanguageNode> identifier = character_class(add_range('a', 'z'), add_range('A', 'Z'), add_character('_'), add_range('0', '9'));
-	std::unique_ptr<LanguageNode> hex_digit = character_class(add_range('0', '9'), add_range('a', 'f'), add_range('A', 'F'));
+	std::unique_ptr<LanguageNode> identifier_begin_character = choice(range('a', 'z'), range('A', 'Z'), character('_'));
+	std::unique_ptr<LanguageNode> identifier_character = choice(range('a', 'z'), range('A', 'Z'), character('_'), range('0', '9'));
+	std::unique_ptr<LanguageNode> hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
 	std::unique_ptr<LanguageNode> escape = sequence(character('\\'), any_character());
 	std::unique_ptr<LanguageNode> keyword(const char* s) {
-		return sequence(string(s), not_(reference(identifier)));
+		return sequence(string(s), not_(reference(identifier_character)));
 	}
 public:
 	std::unique_ptr<LanguageNode> language = repetition(choice(
@@ -37,19 +37,20 @@ public:
 					// exponent
 					optional(sequence(
 						choice(character('p'), character('P')),
+						optional(choice(character('+'), character('-'))),
 						one_or_more(range('0', '9'))
 					))
 				),
 				// decimal
 				sequence(
 					choice(
-						sequence(one_or_more(range('0', '9')), optional(character('.'))),
-						character('.')
+						sequence(one_or_more(range('0', '9')), optional(character('.')), zero_or_more(range('0', '9'))),
+						sequence(character('.'), one_or_more(range('0', '9')))
 					),
-					zero_or_more(range('0', '9')),
 					// exponent
 					optional(sequence(
 						choice(character('e'), character('E')),
+						optional(choice(character('+'), character('-'))),
 						one_or_more(range('0', '9'))
 					))
 				)
@@ -92,9 +93,9 @@ public:
 			keyword("signed")
 		)),
 		// preprocessor
-		highlight(1, sequence(character('#'), repetition(reference(identifier)))),
+		highlight(1, sequence(character('#'), repetition(reference(identifier_character)))),
 		// identifiers
-		sequence(reference(identifier_begin), repetition(reference(identifier))),
+		sequence(reference(identifier_begin_character), repetition(reference(identifier_character))),
 		any_character()
 	));
 };
