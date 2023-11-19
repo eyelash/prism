@@ -317,7 +317,7 @@ template <class... T> class Tuple;
 template <> class Tuple<> {
 public:
 	constexpr Tuple() {}
-	bool match_sequence(Cursor& cursor, const Cursor::SavePoint& save_point) const {
+	bool match_sequence(Cursor& cursor) const {
 		return true;
 	}
 	bool match_choice(Cursor& cursor) const {
@@ -329,12 +329,18 @@ template <class T0, class... T> class Tuple<T0, T...> {
 	Tuple<T...> t;
 public:
 	constexpr Tuple(T0 t0, T... t): t0(t0), t(t...) {}
-	bool match_sequence(Cursor& cursor, const Cursor::SavePoint& save_point) const {
+	bool match_sequence(Cursor& cursor) const {
+		const auto save_point = cursor.save();
 		if (t0.match(cursor)) {
-			return t.match_sequence(cursor, save_point);
+			if (t.match_sequence(cursor)) {
+				return true;
+			}
+			else {
+				cursor.restore(save_point);
+				return false;
+			}
 		}
 		else {
-			cursor.restore(save_point);
 			return false;
 		}
 	}
@@ -348,40 +354,21 @@ public:
 	}
 };
 
-template <class T0, class T1> class Sequence {
-	T0 t0;
-	T1 t1;
+template <class... T> class Sequence {
+	Tuple<T...> t;
 public:
-	constexpr Sequence(T0 t0, T1 t1): t0(t0), t1(t1) {}
+	constexpr Sequence(T... t): t(t...) {}
 	bool match(Cursor& cursor) const {
-		auto save_point = cursor.save();
-		if (t0.match(cursor)) {
-			if (t1.match(cursor)) {
-				return true;
-			}
-			else {
-				cursor.restore(save_point);
-				return false;
-			}
-		}
-		else {
-			return false;
-		}
+		return t.match_sequence(cursor);
 	}
 };
 
-template <class T0, class T1> class Choice {
-	T0 t0;
-	T1 t1;
+template <class... T> class Choice {
+	Tuple<T...> t;
 public:
-	constexpr Choice(T0 t0, T1 t1): t0(t0), t1(t1) {}
+	constexpr Choice(T... t): t(t...) {}
 	bool match(Cursor& cursor) const {
-		if (t0.match(cursor)) {
-			return true;
-		}
-		else {
-			return t1.match(cursor);
-		}
+		return t.match_choice(cursor);
 	}
 };
 
@@ -460,17 +447,11 @@ constexpr auto any_char() {
 		return c != '\0';
 	});
 }
-template <class T0, class T1> constexpr auto sequence(T0 t0, T1 t1) {
-	return Sequence(get_language_node(t0), get_language_node(t1));
+template <class... T> constexpr auto sequence(T... t) {
+	return Sequence(get_language_node(t)...);
 }
-template <class T0, class T1, class T2, class... T> constexpr auto sequence(T0 t0, T1 t1, T2 t2, T... t) {
-	return sequence(sequence(t0, t1), t2, t...);
-}
-template <class T0, class T1> constexpr auto choice(T0 t0, T1 t1) {
-	return Choice(get_language_node(t0), get_language_node(t1));
-}
-template <class T0, class T1, class T2, class... T> constexpr auto choice(T0 t0, T1 t1, T2 t2, T... t) {
-	return choice(choice(t0, t1), t2, t...);
+template <class... T> constexpr auto choice(T... t) {
+	return Choice(get_language_node(t)...);
 }
 template <class T> constexpr auto repetition(T child) {
 	return Repetition(get_language_node(child));
