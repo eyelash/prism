@@ -148,13 +148,28 @@ constexpr Theme one_dark_theme = {
 	}
 };
 
-class Span {
+class Range {
 public:
 	std::size_t start;
 	std::size_t end;
+	Range() {}
+	constexpr Range(std::size_t start, std::size_t end): start(start), end(end) {}
+	constexpr Range operator |(const Range& range) const {
+		return Range(std::min(start, range.start), std::max(end, range.end));
+	}
+	constexpr Range operator &(const Range& range) const {
+		return Range(std::max(start, range.start), std::max(end, range.end));
+	}
+	constexpr operator bool() const {
+		return start < end;
+	}
+};
+
+class Span: public Range {
+public:
 	int style;
 	Span() {}
-	constexpr Span(std::size_t start, std::size_t end, int style): start(start), end(end), style(style) {}
+	constexpr Span(std::size_t start, std::size_t end, int style): Range(start, end), style(style) {}
 	friend std::ostream& operator <<(std::ostream& os, const Span& span) {
 		return os << "(" << span.start << ", " << span.end << ") -> " << span.style;
 	}
@@ -193,7 +208,10 @@ class Spans {
 	std::vector<Span> spans;
 	std::size_t start = 0;
 	int style = Style::DEFAULT;
-	void emit_span(std::size_t end) {
+	void emit_span(std::size_t end, const Range& window) {
+		if (end <= window.start || start >= window.end) {
+			return;
+		}
 		if (spans.size() > 0) {
 			Span& last_span = spans.back();
 			if (last_span.end == start && last_span.style == style) {
@@ -204,9 +222,9 @@ class Spans {
 		spans.emplace_back(start, end, style);
 	}
 public:
-	int change_style(std::size_t pos, int new_style) {
+	int change_style(std::size_t pos, int new_style, const Range& window) {
 		if (pos != start) {
-			emit_span(pos);
+			emit_span(pos, window);
 			start = pos;
 		}
 		const int old_style = style;
@@ -233,12 +251,13 @@ public:
 
 class Cursor {
 	Input* input;
+	Range window;
 	std::size_t pos;
 	StringView string;
 	const void* input_save_point;
 	Spans spans;
 public:
-	Cursor(Input* input): input(input), pos(0) {
+	Cursor(Input* input, std::size_t window_start, std::size_t window_end): input(input), window(window_start, window_end), pos(0) {
 		string = input->get();
 		input_save_point = input->save();
 	}
@@ -257,10 +276,13 @@ public:
 		}
 	}
 	int change_style(int new_style) {
-		return spans.change_style(pos, new_style);
+		return spans.change_style(pos, new_style, window);
 	}
 	const std::vector<Span>& get_spans() const {
 		return spans.get_spans();
+	}
+	bool is_before_window_end() const {
+		return pos < window.end;
 	}
 	struct SavePoint {
 		std::size_t pos;
@@ -497,7 +519,7 @@ template <class... T> class Scope final: public ScopeInterface {
 public:
 	constexpr Scope(T... t): tuple(t...) {}
 	bool match(Cursor& cursor) const override {
-		while (match_single(cursor)) {}
+		while (cursor.is_before_window_end() && match_single(cursor)) {}
 		return true;
 	}
 };
@@ -595,7 +617,7 @@ int main(int argc, char** argv) {
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
 	const auto file = read_file(file_name);
 	StringInput input(file.data(), file.size());
-	Cursor cursor(&input);
+	Cursor cursor(&input, 0, file.size());
 	scopes["c"]->match(cursor);
 	print(file, cursor.get_spans());
 }
