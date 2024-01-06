@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include "os.hpp"
 
 class StringView {
 	const char* data_;
@@ -597,7 +598,7 @@ static std::vector<char> read_file(const char* file_name) {
 	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
-static void print(const std::vector<char>& file, const std::vector<Span>& spans) {
+template <class T> static void print(const T& file, const std::vector<Span>& spans) {
 	Style::set_background_color(one_dark_theme.background);
 	std::size_t i = 0;
 	for (const Span& span: spans) {
@@ -615,7 +616,7 @@ static void print(const std::vector<char>& file, const std::vector<Span>& spans)
 int main(int argc, char** argv) {
 	initialize();
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const auto file = read_file(file_name);
+	const auto file = Mmap(file_name);
 	StringInput input(file.data(), file.size());
 	Cursor cursor(&input, 0, file.size());
 	scopes["c"]->match(cursor);
