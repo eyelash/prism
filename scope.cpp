@@ -159,7 +159,7 @@ public:
 		return Range(std::min(start, range.start), std::max(end, range.end));
 	}
 	constexpr Range operator &(const Range& range) const {
-		return Range(std::max(start, range.start), std::max(end, range.end));
+		return Range(std::max(start, range.start), std::min(end, range.end));
 	}
 	constexpr operator bool() const {
 		return start < end;
@@ -262,7 +262,7 @@ public:
 		string = input->get();
 		input_save_point = input->save();
 	}
-	char get() {
+	char get() const {
 		return string.size() > 0 ? *string : '\0';
 	}
 	void advance() {
@@ -410,12 +410,8 @@ template <class T> class Optional {
 public:
 	constexpr Optional(T t): t(t) {}
 	bool match(Cursor& cursor) const {
-		if (t.match(cursor)) {
-			return true;
-		}
-		else {
-			return true;
-		}
+		t.match(cursor);
+		return true;
 	}
 };
 
@@ -424,7 +420,7 @@ template <class T> class Not {
 public:
 	constexpr Not(T t): t(t) {}
 	bool match(Cursor& cursor) const {
-		auto save_point = cursor.save();
+		const auto save_point = cursor.save();
 		if (t.match(cursor)) {
 			cursor.restore(save_point);
 			return false;
@@ -504,8 +500,10 @@ constexpr auto end() {
 class ScopeInterface {
 public:
 	virtual ~ScopeInterface() = default;
-	virtual bool match(Cursor&) const = 0;
+	virtual void match(Cursor&) const = 0;
 };
+
+static std::map<const char*, std::unique_ptr<ScopeInterface>> scopes;
 
 template <class... T> class Scope final: public ScopeInterface {
 	Tuple<T...> tuple;
@@ -519,17 +517,14 @@ template <class... T> class Scope final: public ScopeInterface {
 	}
 public:
 	constexpr Scope(T... t): tuple(t...) {}
-	bool match(Cursor& cursor) const override {
+	void match(Cursor& cursor) const override {
 		while (cursor.is_before_window_end() && match_single(cursor)) {}
-		return true;
 	}
 };
 
 template <class... T> std::unique_ptr<ScopeInterface> scope(T... t) {
 	return std::unique_ptr<ScopeInterface>(new Scope(get_language_node(t)...));
 }
-
-static std::map<const char*, std::unique_ptr<ScopeInterface>> scopes;
 
 constexpr auto c_whitespace_char = choice(' ', '\t', '\n', '\r', '\v', '\f');
 constexpr auto c_identifier_begin_char = choice(range('a', 'z'), range('A', 'Z'), '_');
@@ -600,25 +595,22 @@ static std::vector<char> read_file(const char* file_name) {
 
 template <class T> static void print(const T& file, const std::vector<Span>& spans) {
 	Style::set_background_color(one_dark_theme.background);
-	std::size_t i = 0;
+	std::cout << '\n';
 	for (const Span& span: spans) {
-		if (span.start > i) {
-			std::cout.write(file.data() + i, span.start - i);
-			i = span.start;
-		}
 		one_dark_theme.styles[span.style - Style::DEFAULT].apply();
 		std::cout.write(file.data() + span.start, span.end - span.start);
-		i = span.end;
 	}
 	Style::clear();
+	std::cout << '\n';
 }
 
 int main(int argc, char** argv) {
 	initialize();
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const auto file = Mmap(file_name);
+	const auto file = read_file(file_name);
 	StringInput input(file.data(), file.size());
 	Cursor cursor(&input, 0, file.size());
 	scopes["c"]->match(cursor);
+	cursor.change_style(Style::DEFAULT);
 	print(file, cursor.get_spans());
 }
