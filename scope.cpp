@@ -205,6 +205,18 @@ public:
 	}
 };
 
+class Tree {
+	struct Checkpoint {
+		std::size_t pos;
+		std::size_t max_pos;
+	};
+	std::vector<Checkpoint> checkpoints;
+public:
+	void add_checkpoint(std::size_t pos, std::size_t max_pos) {
+		checkpoints.push_back({pos, max_pos});
+	}
+};
+
 class Spans {
 	std::vector<Span> spans;
 	std::size_t start = 0;
@@ -252,13 +264,15 @@ public:
 
 class Cursor {
 	Input* input;
+	Tree& tree;
 	Range window;
+	std::size_t max_pos;
 	std::size_t pos;
 	StringView string;
 	const void* input_save_point;
 	Spans spans;
 public:
-	Cursor(Input* input, std::size_t window_start, std::size_t window_end): input(input), window(window_start, window_end), pos(0) {
+	Cursor(Input* input, Tree& tree, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), pos(0) {
 		string = input->get();
 		input_save_point = input->save();
 	}
@@ -279,11 +293,20 @@ public:
 	int change_style(int new_style) {
 		return spans.change_style(pos, new_style, window);
 	}
+	void add_checkpoint() {
+		// TODO
+	}
+	void skip_to_checkpoint() {
+		// TODO
+	}
 	const std::vector<Span>& get_spans() const {
 		return spans.get_spans();
 	}
 	bool is_before_window_end() const {
 		return pos < window.end;
+	}
+	std::size_t get_max_pos() const {
+		return std::max(max_pos, pos);
 	}
 	struct SavePoint {
 		std::size_t pos;
@@ -295,6 +318,7 @@ public:
 		return {pos, string, input_save_point, spans.save()};
 	}
 	void restore(const SavePoint& save_point) {
+		max_pos = std::max(max_pos, pos);
 		pos = save_point.pos;
 		string = save_point.string;
 		if (save_point.input_save_point != input_save_point) {
@@ -518,7 +542,10 @@ template <class... T> class Scope final: public ScopeInterface {
 public:
 	constexpr Scope(T... t): tuple(t...) {}
 	void match(Cursor& cursor) const override {
-		while (cursor.is_before_window_end() && match_single(cursor)) {}
+		cursor.skip_to_checkpoint();
+		while (cursor.is_before_window_end() && match_single(cursor)) {
+			cursor.add_checkpoint();
+		}
 	}
 };
 
@@ -608,8 +635,9 @@ int main(int argc, char** argv) {
 	initialize();
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
 	const auto file = read_file(file_name);
+	Tree tree;
 	StringInput input(file.data(), file.size());
-	Cursor cursor(&input, 0, file.size());
+	Cursor cursor(&input, tree, 0, file.size());
 	scopes["c"]->match(cursor);
 	cursor.change_style(Style::DEFAULT);
 	print(file, cursor.get_spans());
