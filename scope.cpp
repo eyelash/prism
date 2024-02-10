@@ -218,7 +218,7 @@ public:
 };
 
 class Spans {
-	std::vector<Span> spans;
+	std::vector<Span>& spans;
 	std::size_t start = 0;
 	int style = Style::DEFAULT;
 	void emit_span(std::size_t end, const Range& window) {
@@ -235,6 +235,7 @@ class Spans {
 		spans.emplace_back(start, end, style);
 	}
 public:
+	Spans(std::vector<Span>& spans): spans(spans) {}
 	int change_style(std::size_t pos, int new_style, const Range& window) {
 		if (pos != start) {
 			emit_span(pos, window);
@@ -257,9 +258,6 @@ public:
 		start = save_point.start;
 		style = save_point.style;
 	}
-	const std::vector<Span>& get_spans() const {
-		return spans;
-	}
 };
 
 class Cursor {
@@ -272,7 +270,7 @@ class Cursor {
 	const void* input_save_point;
 	Spans spans;
 public:
-	Cursor(Input* input, Tree& tree, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), pos(0) {
+	Cursor(Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), pos(0), spans(spans) {
 		string = input->get();
 		input_save_point = input->save();
 	}
@@ -298,9 +296,6 @@ public:
 	}
 	void skip_to_checkpoint() {
 		// TODO
-	}
-	const std::vector<Span>& get_spans() const {
-		return spans.get_spans();
 	}
 	bool is_before_window_end() const {
 		return pos < window.end;
@@ -636,9 +631,10 @@ int main(int argc, char** argv) {
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
 	const auto file = read_file(file_name);
 	Tree tree;
+	std::vector<Span> spans;
 	StringInput input(file.data(), file.size());
-	Cursor cursor(&input, tree, 0, file.size());
+	Cursor cursor(&input, tree, spans, 0, file.size());
 	scopes["c"]->match(cursor);
 	cursor.change_style(Style::DEFAULT);
-	print(file, cursor.get_spans());
+	print(file, spans);
 }
