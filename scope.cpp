@@ -228,11 +228,11 @@ class Spans {
 		if (spans.size() > 0) {
 			Span& last_span = spans.back();
 			if (last_span.end == start && last_span.style == style) {
-				last_span.end = end;
+				last_span.end = std::min(end, window.end);
 				return;
 			}
 		}
-		spans.emplace_back(start, end, style);
+		spans.emplace_back(std::max(start, window.start), std::min(end, window.end), style);
 	}
 public:
 	Spans(std::vector<Span>& spans): spans(spans) {}
@@ -616,11 +616,39 @@ static std::vector<char> read_file(const char* file_name) {
 }
 
 template <class T> static void print(const T& file, const std::vector<Span>& spans) {
-	Style::set_background_color(one_dark_theme.background);
-	std::cout << '\n';
 	for (const Span& span: spans) {
 		one_dark_theme.styles[span.style - Style::DEFAULT].apply();
 		std::cout.write(file.data() + span.start, span.end - span.start);
+	}
+}
+
+static void highlight(const char* file_name) {
+	const auto file = read_file(file_name);
+	Tree tree;
+	std::vector<Span> spans;
+	StringInput input(file.data(), file.size());
+	Cursor cursor(&input, tree, spans, 0, file.size());
+	scopes["c"]->match(cursor);
+	cursor.change_style(Style::DEFAULT);
+	Style::set_background_color(one_dark_theme.background);
+	std::cout << '\n';
+	print(file, spans);
+	Style::clear();
+	std::cout << '\n';
+}
+
+static void highlight_incremental(const char* file_name) {
+	const auto file = read_file(file_name);
+	Tree tree;
+	Style::set_background_color(one_dark_theme.background);
+	std::cout << '\n';
+	for (std::size_t i = 0; i < file.size(); i += 1000) {
+		std::vector<Span> spans;
+		StringInput input(file.data(), file.size());
+		Cursor cursor(&input, tree, spans, i, std::min(i + 1000, file.size()));
+		scopes["c"]->match(cursor);
+		cursor.change_style(Style::DEFAULT);
+		print(file, spans);
 	}
 	Style::clear();
 	std::cout << '\n';
@@ -629,12 +657,5 @@ template <class T> static void print(const T& file, const std::vector<Span>& spa
 int main(int argc, char** argv) {
 	initialize();
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const auto file = read_file(file_name);
-	Tree tree;
-	std::vector<Span> spans;
-	StringInput input(file.data(), file.size());
-	Cursor cursor(&input, tree, spans, 0, file.size());
-	scopes["c"]->match(cursor);
-	cursor.change_style(Style::DEFAULT);
-	print(file, spans);
+	highlight(file_name);
 }
