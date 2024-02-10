@@ -3,6 +3,7 @@
 #include <map>
 #include <utility>
 #include <cmath>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include "os.hpp"
@@ -225,7 +226,23 @@ class Tree {
 	std::vector<Checkpoint> checkpoints;
 public:
 	void add_checkpoint(std::size_t pos, std::size_t max_pos) {
-		checkpoints.push_back({pos, max_pos});
+		if (checkpoints.empty() || pos > checkpoints.back().pos) {
+			checkpoints.push_back({pos, max_pos});
+		}
+	}
+	std::size_t find_checkpoint(std::size_t pos) const {
+		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+			return checkpoint.pos > pos;
+		};
+		auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
+		return iter != checkpoints.rend() ? iter->pos : 0;
+	}
+	void edit(std::size_t pos) {
+		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+			return checkpoint.max_pos < pos;
+		};
+		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+		checkpoints.erase(iter, checkpoints.end());
 	}
 };
 
@@ -290,16 +307,13 @@ public:
 		return spans.change_style(input->get_position(), new_style, window);
 	}
 	void add_checkpoint() {
-		// TODO
+		tree.add_checkpoint(input->get_position(), std::max(max_pos, input->get_position()));
 	}
 	void skip_to_checkpoint() {
-		// TODO
+		input->seek(tree.find_checkpoint(window.start));
 	}
 	bool is_before_window_end() const {
 		return input->get_position() < window.end;
-	}
-	std::size_t get_max_pos() const {
-		return std::max(max_pos, input->get_position());
 	}
 	struct SavePoint {
 		Input::SavePoint input;
