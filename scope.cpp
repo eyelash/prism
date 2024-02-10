@@ -178,30 +178,42 @@ public:
 
 class Input {
 public:
+	using SavePoint = std::pair<const void*, std::size_t>;
 	virtual ~Input() = default;
-	virtual StringView get() = 0;
+	virtual char get() = 0;
 	virtual void advance() = 0;
-	virtual const void* save() = 0;
-	virtual void restore(const void*) = 0;
+	virtual std::size_t get_position() = 0;
+	virtual void seek(std::size_t) = 0;
+	virtual SavePoint save() = 0;
+	virtual void restore(const SavePoint&) = 0;
 };
 
 class StringInput final: public Input {
 	const char* data_;
 	std::size_t size_;
+	std::size_t i;
 public:
-	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
+	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_), i(0) {}
 	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
-	StringView get() override {
-		return StringView(data_, data_ ? size_ : 0);
+	char get() override {
+		return i < size_ ? data_[i] : '\0';
 	}
 	void advance() override {
-		data_ = nullptr;
+		if (i < size_) {
+			++i;
+		}
 	}
-	const void* save() override {
-		return data_;
+	std::size_t get_position() override {
+		return i;
 	}
-	void restore(const void* data_) override {
-		this->data_ = static_cast<const char*>(data_);
+	void seek(std::size_t pos) override {
+		i = pos;
+	}
+	SavePoint save() override {
+		return {nullptr, i};
+	}
+	void restore(const SavePoint& save_point) override {
+		i = save_point.second;
 	}
 };
 
@@ -265,31 +277,17 @@ class Cursor {
 	Tree& tree;
 	Range window;
 	std::size_t max_pos;
-	std::size_t pos;
-	StringView string;
-	const void* input_save_point;
 	Spans spans;
 public:
-	Cursor(Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), pos(0), spans(spans) {
-		string = input->get();
-		input_save_point = input->save();
-	}
+	Cursor(Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
-		return string.size() > 0 ? *string : '\0';
+		return input->get();
 	}
 	void advance() {
-		if (string.size() > 0) {
-			string = string.substr(1);
-			++pos;
-		}
-		if (string.size() == 0) {
-			input->advance();
-			string = input->get();
-			input_save_point = input->save();
-		}
+		input->advance();
 	}
 	int change_style(int new_style) {
-		return spans.change_style(pos, new_style, window);
+		return spans.change_style(input->get_position(), new_style, window);
 	}
 	void add_checkpoint() {
 		// TODO
@@ -298,27 +296,21 @@ public:
 		// TODO
 	}
 	bool is_before_window_end() const {
-		return pos < window.end;
+		return input->get_position() < window.end;
 	}
 	std::size_t get_max_pos() const {
-		return std::max(max_pos, pos);
+		return std::max(max_pos, input->get_position());
 	}
 	struct SavePoint {
-		std::size_t pos;
-		StringView string;
-		const void* input_save_point;
+		Input::SavePoint input;
 		Spans::SavePoint spans;
 	};
 	SavePoint save() const {
-		return {pos, string, input_save_point, spans.save()};
+		return {input->save(), spans.save()};
 	}
 	void restore(const SavePoint& save_point) {
-		max_pos = std::max(max_pos, pos);
-		pos = save_point.pos;
-		string = save_point.string;
-		if (save_point.input_save_point != input_save_point) {
-			input->restore(save_point.input_save_point);
-		}
+		max_pos = std::max(max_pos, input->get_position());
+		input->restore(save_point.input);
 		spans.restore(save_point.spans);
 	}
 };
