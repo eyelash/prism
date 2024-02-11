@@ -179,14 +179,11 @@ public:
 
 class Input {
 public:
-	using SavePoint = std::pair<const void*, std::size_t>;
 	virtual ~Input() = default;
 	virtual char get() = 0;
 	virtual void advance() = 0;
 	virtual std::size_t get_position() = 0;
-	virtual void seek(std::size_t) = 0;
-	virtual SavePoint save() = 0;
-	virtual void restore(const SavePoint&) = 0;
+	virtual void set_position(std::size_t) = 0;
 };
 
 class StringInput final: public Input {
@@ -207,14 +204,8 @@ public:
 	std::size_t get_position() override {
 		return i;
 	}
-	void seek(std::size_t pos) override {
+	void set_position(std::size_t pos) override {
 		i = pos;
-	}
-	SavePoint save() override {
-		return {nullptr, i};
-	}
-	void restore(const SavePoint& save_point) override {
-		i = save_point.second;
 	}
 };
 
@@ -290,41 +281,41 @@ public:
 };
 
 class Cursor {
-	Input* input;
+	Input& input;
 	Tree& tree;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	Cursor(Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	Cursor(Input& input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
-		return input->get();
+		return input.get();
 	}
 	void advance() {
-		input->advance();
+		input.advance();
 	}
 	int change_style(int new_style) {
-		return spans.change_style(input->get_position(), new_style, window);
+		return spans.change_style(input.get_position(), new_style, window);
 	}
 	void add_checkpoint() {
-		tree.add_checkpoint(input->get_position(), std::max(max_pos, input->get_position()));
+		tree.add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
 	}
 	void skip_to_checkpoint() {
-		input->seek(tree.find_checkpoint(window.start));
+		input.set_position(tree.find_checkpoint(window.start));
 	}
 	bool is_before_window_end() const {
-		return input->get_position() < window.end;
+		return input.get_position() < window.end;
 	}
 	struct SavePoint {
-		Input::SavePoint input;
+		std::size_t pos;
 		Spans::SavePoint spans;
 	};
 	SavePoint save() const {
-		return {input->save(), spans.save()};
+		return {input.get_position(), spans.save()};
 	}
 	void restore(const SavePoint& save_point) {
-		max_pos = std::max(max_pos, input->get_position());
-		input->restore(save_point.input);
+		max_pos = std::max(max_pos, input.get_position());
+		input.set_position(save_point.pos);
 		spans.restore(save_point.spans);
 	}
 };
@@ -633,7 +624,7 @@ static void highlight(const char* file_name) {
 	Tree tree;
 	std::vector<Span> spans;
 	StringInput input(file.data(), file.size());
-	Cursor cursor(&input, tree, spans, 0, file.size());
+	Cursor cursor(input, tree, spans, 0, file.size());
 	scopes["c"]->match(cursor);
 	cursor.change_style(Style::DEFAULT);
 	Style::set_background_color(one_dark_theme.background);
@@ -651,7 +642,7 @@ static void highlight_incremental(const char* file_name) {
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
 		std::vector<Span> spans;
 		StringInput input(file.data(), file.size());
-		Cursor cursor(&input, tree, spans, i, std::min(i + 1000, file.size()));
+		Cursor cursor(input, tree, spans, i, std::min(i + 1000, file.size()));
 		scopes["c"]->match(cursor);
 		cursor.change_style(Style::DEFAULT);
 		print(file, spans);
