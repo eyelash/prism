@@ -543,15 +543,32 @@ constexpr auto end() {
 	return not_(any_char());
 }
 
-class ScopeInterface {
+class ScopeWrapper {
+	class Interface {
+	public:
+		virtual ~Interface() = default;
+		virtual void match(Cursor&) const = 0;
+	};
+	template <class T> class Implementation final: public Interface {
+		T t;
+	public:
+		constexpr Implementation(T t): t(t) {}
+		void match(Cursor& cursor) const override {
+			t.match(cursor);
+		}
+	};
+	std::unique_ptr<Interface> scope;
 public:
-	virtual ~ScopeInterface() = default;
-	virtual void match(Cursor&) const = 0;
+	ScopeWrapper() {}
+	template <class T> ScopeWrapper(T t): scope(std::make_unique<Implementation<T>>(t)) {}
+	void match(Cursor& cursor) const {
+		scope->match(cursor);
+	}
 };
 
-static std::map<const char*, std::unique_ptr<ScopeInterface>> scopes;
+static std::map<const char*, ScopeWrapper> scopes;
 
-template <class... T> class Scope final: public ScopeInterface {
+template <class... T> class Scope {
 	Tuple<T...> tuple;
 	bool match_single(Cursor& cursor) const {
 		if (tuple.match_choice(cursor)) {
@@ -563,7 +580,7 @@ template <class... T> class Scope final: public ScopeInterface {
 	}
 public:
 	constexpr Scope(T... t): tuple(t...) {}
-	void match(Cursor& cursor) const override {
+	void match(Cursor& cursor) const {
 		cursor.skip_to_checkpoint();
 		while (cursor.is_before_window_end() && match_single(cursor)) {
 			cursor.add_checkpoint();
@@ -571,8 +588,8 @@ public:
 	}
 };
 
-template <class... T> std::unique_ptr<ScopeInterface> scope(T... t) {
-	return std::unique_ptr<ScopeInterface>(new Scope(get_language_node(t)...));
+template <class... T> constexpr auto scope(T... t) {
+	return Scope(get_language_node(t)...);
 }
 
 constexpr auto c_whitespace_char = choice(' ', '\t', '\n', '\r', '\v', '\f');
@@ -655,7 +672,7 @@ static void highlight(const char* file_name) {
 	std::vector<Span> spans;
 	StringInput input(file.data(), file.size());
 	Cursor cursor(&input, tree, spans, 0, file.size());
-	scopes["c"]->match(cursor);
+	scopes["c"].match(cursor);
 	cursor.change_style(Style::DEFAULT);
 	Style::set_background_color(one_dark_theme.background);
 	std::cout << '\n';
@@ -673,7 +690,7 @@ static void highlight_incremental(const char* file_name) {
 		std::vector<Span> spans;
 		StringInput input(file.data(), file.size());
 		Cursor cursor(&input, tree, spans, i, std::min(i + 1000, file.size()));
-		scopes["c"]->match(cursor);
+		scopes["c"].match(cursor);
 		cursor.change_style(Style::DEFAULT);
 		print(file, spans);
 	}
