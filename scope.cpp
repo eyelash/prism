@@ -179,33 +179,63 @@ public:
 
 class Input {
 public:
+	struct Chunk {
+		const void* chunk;
+		const char* data;
+		std::size_t size;
+	};
 	virtual ~Input() = default;
-	virtual char get() = 0;
-	virtual void advance() = 0;
-	virtual std::size_t get_position() = 0;
-	virtual void set_position(std::size_t) = 0;
+	virtual std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const = 0;
+	virtual Chunk get_next_chunk(const void* chunk) const = 0;
 };
 
 class StringInput final: public Input {
 	const char* data_;
 	std::size_t size_;
+public:
+	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
+	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
+	std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const override {
+		return {{nullptr, data_, size_}, 0};
+	}
+	Chunk get_next_chunk(const void* chunk) const override {
+		return {nullptr, nullptr, 0};
+	}
+};
+
+class InputAdapter {
+	const Input* input;
+	Input::Chunk chunk;
+	std::size_t offset;
 	std::size_t i;
 public:
-	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_), i(0) {}
-	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
-	char get() override {
-		return i < size_ ? data_[i] : '\0';
+	InputAdapter(const Input* input): input(input), chunk({nullptr, nullptr, 0}), offset(0), i(0) {
+		set_position(0);
 	}
-	void advance() override {
-		if (i < size_) {
-			++i;
+	char get() const {
+		return i < chunk.size ? chunk.data[i] : '\0';
+	}
+	void advance() {
+		++i;
+		if (i == chunk.size) {
+			offset += chunk.size;
+			chunk = input->get_next_chunk(chunk.chunk);
+			i = 0;
 		}
 	}
-	std::size_t get_position() override {
-		return i;
+	std::size_t get_position() const {
+		return offset + i;
 	}
-	void set_position(std::size_t pos) override {
-		i = pos;
+	void set_position(std::size_t pos) {
+		if (pos >= offset && pos - offset < chunk.size) {
+			i = pos - offset;
+		}
+		else {
+			auto chunk_pair = input->get_chunk(pos);
+			chunk = chunk_pair.first;
+			offset = chunk_pair.second;
+			i = pos - offset;
+		}
 	}
 };
 
@@ -281,13 +311,13 @@ public:
 };
 
 class Cursor {
-	Input& input;
+	InputAdapter input;
 	Tree& tree;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	Cursor(Input& input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	Cursor(const Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -624,7 +654,7 @@ static void highlight(const char* file_name) {
 	Tree tree;
 	std::vector<Span> spans;
 	StringInput input(file.data(), file.size());
-	Cursor cursor(input, tree, spans, 0, file.size());
+	Cursor cursor(&input, tree, spans, 0, file.size());
 	scopes["c"]->match(cursor);
 	cursor.change_style(Style::DEFAULT);
 	Style::set_background_color(one_dark_theme.background);
@@ -642,7 +672,7 @@ static void highlight_incremental(const char* file_name) {
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
 		std::vector<Span> spans;
 		StringInput input(file.data(), file.size());
-		Cursor cursor(input, tree, spans, i, std::min(i + 1000, file.size()));
+		Cursor cursor(&input, tree, spans, i, std::min(i + 1000, file.size()));
 		scopes["c"]->match(cursor);
 		cursor.change_style(Style::DEFAULT);
 		print(file, spans);
