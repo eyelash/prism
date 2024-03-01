@@ -579,22 +579,10 @@ static std::map<StringView, ScopeWrapper> scopes;
 
 template <class... T> class Scope {
 	Tuple<T...> tuple;
-	bool match_single(Cursor& cursor) const {
-		if (tuple.match_choice(cursor)) {
-			return true;
-		}
-		else {
-			return any_char().match(cursor);
-		}
-	}
 public:
 	constexpr Scope(T... t): tuple(t...) {}
 	bool match(Cursor& cursor) const {
-		cursor.skip_to_checkpoint();
-		while (cursor.is_before_window_end() && match_single(cursor)) {
-			cursor.add_checkpoint();
-		}
-		return true;
+		return tuple.match_choice(cursor);
 	}
 };
 
@@ -607,11 +595,36 @@ public:
 	}
 };
 
+class RootScope {
+	const char* name;
+	static bool match_single(Cursor& cursor, const ScopeWrapper& scope) {
+		if (scope.match(cursor)) {
+			return true;
+		}
+		else {
+			return any_char().match(cursor);
+		}
+	}
+public:
+	constexpr RootScope(const char* name): name(name) {}
+	bool match(Cursor& cursor) const {
+		const ScopeWrapper& scope = scopes[name];
+		cursor.skip_to_checkpoint();
+		while (cursor.is_before_window_end() && match_single(cursor, scope)) {
+			cursor.add_checkpoint();
+		}
+		return true;
+	}
+};
+
 template <class... T> constexpr auto scope(T... t) {
 	return Scope(get_language_node(t)...);
 }
 constexpr auto scope(const char* name) {
 	return ScopeReference(name);
+}
+constexpr auto root_scope(const char* name) {
+	return RootScope(name);
 }
 
 constexpr auto c_whitespace_char = choice(' ', '\t', '\n', '\r', '\v', '\f');
@@ -676,6 +689,14 @@ static void initialize() {
 	);
 }
 
+static std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
+	std::vector<Span> spans;
+	Cursor cursor(input, tree, spans, window_start, window_end);
+	root_scope(language).match(cursor);
+	cursor.change_style(Style::DEFAULT);
+	return spans;
+}
+
 static std::vector<char> read_file(const char* file_name) {
 	std::ifstream file(file_name);
 	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
@@ -688,14 +709,11 @@ template <class T> static void print(const T& file, const std::vector<Span>& spa
 	}
 }
 
-static void highlight(const char* file_name) {
+static void highlight(const char* file_name, const char* language) {
 	const auto file = read_file(file_name);
-	Tree tree;
-	std::vector<Span> spans;
 	StringInput input(file.data(), file.size());
-	Cursor cursor(&input, tree, spans, 0, file.size());
-	scopes["c"].match(cursor);
-	cursor.change_style(Style::DEFAULT);
+	Tree tree;
+	std::vector<Span> spans = highlight(language, &input, tree, 0, file.size());
 	Style::set_background_color(one_dark_theme.background);
 	std::cout << '\n';
 	print(file, spans);
@@ -703,17 +721,14 @@ static void highlight(const char* file_name) {
 	std::cout << '\n';
 }
 
-static void highlight_incremental(const char* file_name) {
+static void highlight_incremental(const char* file_name, const char* language) {
 	const auto file = read_file(file_name);
+	StringInput input(file.data(), file.size());
 	Tree tree;
 	Style::set_background_color(one_dark_theme.background);
 	std::cout << '\n';
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
-		std::vector<Span> spans;
-		StringInput input(file.data(), file.size());
-		Cursor cursor(&input, tree, spans, i, std::min(i + 1000, file.size()));
-		scopes["c"].match(cursor);
-		cursor.change_style(Style::DEFAULT);
+		std::vector<Span> spans = highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
 		print(file, spans);
 	}
 	Style::clear();
@@ -723,5 +738,6 @@ static void highlight_incremental(const char* file_name) {
 int main(int argc, char** argv) {
 	initialize();
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	highlight(file_name);
+	const char* language = argc > 2 ? argv[2] : "c";
+	highlight(file_name, language);
 }
