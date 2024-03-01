@@ -1,28 +1,6 @@
 #include "prism.hpp"
 #include <memory>
 #include <map>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include "os.hpp"
-
-void Style::set_background_color(const Color& color) {
-	std::cout << "\e[48;2;"
-		<< std::round(color.r * 255) << ";"
-		<< std::round(color.g * 255) << ";"
-		<< std::round(color.b * 255) << "m";
-}
-void Style::apply() const {
-	std::cout << "\e[38;2;"
-		<< std::round(color.r * 255) << ";"
-		<< std::round(color.g * 255) << ";"
-		<< std::round(color.b * 255) << ";"
-		<< (bold ? 1 : 22) << ";"
-		<< (italic ? 3 : 23) << "m";
-}
-void Style::clear() {
-	std::cout << "\e[m";
-}
 
 const Theme one_dark_theme = {
 	Color::hsl(220, 13, 18), // background

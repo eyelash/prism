@@ -104,9 +104,6 @@ public:
 	bool italic;
 	constexpr Style(const Color& color, bool bold, bool italic): color(color), bold(bold), italic(italic) {}
 	constexpr Style(const Color& color, int attributes = 0): color(color), bold(attributes & BOLD), italic(attributes & ITALIC) {}
-	static void set_background_color(const Color& color);
-	void apply() const;
-	static void clear();
 	static constexpr int INHERIT = 0;
 	static constexpr int WORD = 1;
 	static constexpr int DEFAULT = 2;
