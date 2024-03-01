@@ -237,6 +237,7 @@ struct SourceNode {
 static void parse(SourceNode* node, Cursor& cursor) {
 	Command command = Command::DESCEND;
 	node->snapshot = cursor.save();
+	SourceNode* original_parent = node->parent;
 	while (true) {
 		command = node->language_node->process(command, cursor, node->index);
 		if (command == Command::DESCEND) {
@@ -257,7 +258,7 @@ static void parse(SourceNode* node, Cursor& cursor) {
 			node->length = cursor.save() - node->snapshot;
 			std::cout << "  length = " << node->length << '\n';
 			node->style = node->language_node->get_style();
-			if (node->parent == nullptr) {
+			if (node->parent == original_parent) {
 				return;
 			}
 			node->parent->children.push_back(node);
@@ -266,7 +267,7 @@ static void parse(SourceNode* node, Cursor& cursor) {
 		else if (command == Command::RETURN_FALSE) {
 			std::cout << "RETURN_FALSE\n";
 			cursor.restore(node->snapshot);
-			if (node->parent == nullptr) {
+			if (node->parent == original_parent) {
 				return;
 			}
 			node = node->parent;

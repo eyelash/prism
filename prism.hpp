@@ -25,6 +25,24 @@ public:
 	}
 };
 
+/*class SourceLeaf: public SourceNode {
+public:
+	void accept(SourceNodeVisitor& visitor) override {
+		visitor.visit_leaf(*this);
+	}
+};*/
+
+/*class SourceINode: public SourceNode {
+	std::vector<std::unique_ptr<SourceNode>> children;
+public:
+	void accept(SourceNodeVisitor& visitor) override {
+		visitor.visit_i_node(*this);
+	}
+	const std::vector<std::unique_ptr<SourceNode>>& get_children() const {
+		return children;
+	}
+};*/
+
 class LanguageNode {
 public:
 	virtual std::unique_ptr<SourceNode> match(const char*& c) = 0;
@@ -68,6 +86,71 @@ public:
 	}
 };
 
+class Range: public LanguageNode {
+	char first;
+	char last;
+public:
+	Range(char first, char last): first(first), last(last) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		if (*c && *c >= first && *c <= last) {
+			++c;
+			return std::make_unique<SourceNode>(c - begin);
+		}
+		return nullptr;
+	}
+};
+
+class Character: public LanguageNode {
+	char c;
+public:
+	Character(char c): c(c) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		if (*c && *c == this->c) {
+			++c;
+			return std::make_unique<SourceNode>(c - begin);
+		}
+		return nullptr;
+	}
+};
+
+class String: public LanguageNode {
+	const char* s;
+public:
+	String(const char* s): s(s) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		for (const char* i = s; *i; ++i) {
+			if (*c && *c == *i) {
+				++c;
+			}
+			else {
+				c = begin;
+				return nullptr;
+			}
+		}
+		return std::make_unique<SourceNode>(c - begin);
+		/*std::vector<std::unique_ptr<SourceNode>> source_children;
+		for (auto& child: children) {
+			if (auto source_node = child->match(c)) {
+				source_children.emplace_back(std::move(source_node));
+			}
+			else {
+				c = begin;
+				return nullptr;
+			}
+		}
+		return std::make_unique<SourceNode>(c - begin, std::move(source_children));
+		const char* begin = c;
+		if (*c && *c >= first && *c <= last) {
+			++c;
+			return std::make_unique<SourceNode>(c - begin);
+		}
+		return nullptr;*/
+	}
+};
+
 class Sequence: public LanguageNode {
 	std::vector<std::unique_ptr<LanguageNode>> children;
 public:
@@ -105,6 +188,21 @@ public:
 		return nullptr;
 	}
 };
+
+/*class Optional: public LanguageNode {
+	std::unique_ptr<LanguageNode> child;
+public:
+	Optional(std::unique_ptr<LanguageNode>&& child): child(std::move(child)) {}
+	std::unique_ptr<SourceNode> match(const char*& c) override {
+		const char* begin = c;
+		std::vector<std::unique_ptr<SourceNode>> source_children;
+		if (auto source_node = child->match(c)) {
+			source_children.emplace_back(std::move(source_node));
+			return std::make_unique<SourceNode>(c - begin, std::move(source_node)); 
+		}
+		return std::make_unique<SourceNode>(0);
+	}
+};*/
 
 class Repetition: public LanguageNode {
 	std::unique_ptr<LanguageNode> child;
@@ -200,18 +298,23 @@ template <class... A> std::unique_ptr<LanguageNode> character_class(A... argumen
 }
 
 inline std::unique_ptr<LanguageNode> character(char c) {
-	return character_class(add_character(c));
+	return std::make_unique<Range>(c, c);
 }
 
 inline std::unique_ptr<LanguageNode> range(char first, char last) {
-	return character_class(add_range(first, last));
+	auto result = std::make_unique<CharacterClass>();
+	result->add_range(first, last);
+	return result;
 }
 
 inline std::unique_ptr<LanguageNode> any_character() {
-	return character_class(invert);
+	auto result = std::make_unique<CharacterClass>();
+	result->invert();
+	return result;
 }
 
 inline std::unique_ptr<LanguageNode> string(const char* s) {
+	//return std::make_unique<String>(s);
 	auto result = std::make_unique<Sequence>();
 	for (; *s; ++s) {
 		result->add_child(character(*s));
