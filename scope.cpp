@@ -586,6 +586,33 @@ public:
 	}
 };
 
+template <class S, class E, class... T> class NestedScope {
+	S start;
+	Tuple<T...> t;
+	E end;
+	bool match_single(Cursor& cursor) const {
+		if (!not_(end).match(cursor)) {
+			return false;
+		}
+		if (t.match_choice(cursor)) {
+			return true;
+		}
+		else {
+			return any_char().match(cursor);
+		}
+	}
+public:
+	constexpr NestedScope(S start, E end, T... t): start(start), t(t...), end(end) {}
+	bool match(Cursor& cursor) const {
+		if (!start.match(cursor)) {
+			return false;
+		}
+		while (match_single(cursor)) {}
+		end.match(cursor);
+		return true;
+	}
+};
+
 class ScopeReference {
 	const char* name;
 public:
@@ -623,6 +650,9 @@ template <class... T> constexpr auto scope(T... t) {
 constexpr auto scope(const char* name) {
 	return ScopeReference(name);
 }
+template <class S, class E, class... T> constexpr auto nested_scope(S start, E end, T... t) {
+	return NestedScope(get_language_node(start), get_language_node(end), get_language_node(t)...);
+}
 constexpr auto root_scope(const char* name) {
 	return RootScope(name);
 }
@@ -642,7 +672,7 @@ static void initialize() {
 	scopes["c"] = scope(
 		one_or_more(c_whitespace_char),
 		highlight(Style::COMMENT, choice(
-			sequence("/*", repetition(but("*/")), optional("*/")),
+			nested_scope("/*", "*/"),
 			sequence("//", repetition(but('\n')))
 		)),
 		highlight(Style::STRING, sequence(
