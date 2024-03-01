@@ -1,149 +1,30 @@
+#include "prism.hpp"
 #include <memory>
-#include <vector>
 #include <map>
-#include <utility>
 #include <cmath>
-#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include "os.hpp"
 
-class StringView {
-	const char* data_;
-	std::size_t size_;
-public:
-	static constexpr int strncmp(const char* s0, const char* s1, std::size_t n) {
-		return n == 0 ? 0 : *s0 != *s1 ? *s0 - *s1 : strncmp(s0 + 1, s1 + 1, n - 1);
-	}
-	static constexpr const char* strchr(const char* s, char c) {
-		return *s == c ? s : *s == '\0' ? nullptr : strchr(s + 1, c);
-	}
-	static constexpr std::size_t strlen(const char* s) {
-		return strchr(s, '\0') - s;
-	}
-	constexpr StringView(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
-	constexpr StringView(const char* s): StringView(s, strlen(s)) {}
-	constexpr StringView(): StringView(nullptr, 0) {}
-	constexpr const char* data() const {
-		return data_;
-	}
-	constexpr std::size_t size() const {
-		return size_;
-	}
-	constexpr char operator [](std::size_t i) const {
-		return data_[i];
-	}
-	constexpr char operator *() const {
-		return *data_;
-	}
-	constexpr operator bool() const {
-		return data_ != nullptr;
-	}
-	constexpr bool operator ==(const StringView& s) const {
-		return size_ != s.size_ ? false : strncmp(data_, s.data_, size_) == 0;
-	}
-	constexpr bool operator !=(const StringView& s) const {
-		return !operator ==(s);
-	}
-	constexpr bool operator <(const StringView& s) const {
-		return size_ != s.size_ ? size_ < s.size_ : strncmp(data_, s.data_, size_) < 0;
-	}
-	constexpr const char* begin() const {
-		return data_;
-	}
-	constexpr const char* end() const {
-		return data_ + size_;
-	}
-	constexpr StringView substr(std::size_t pos, std::size_t count) const {
-		return StringView(data_ + pos, count);
-	}
-	constexpr StringView substr(std::size_t pos) const {
-		return StringView(data_ + pos, size_ - pos);
-	}
-};
+void Style::set_background_color(const Color& color) {
+	std::cout << "\e[48;2;"
+		<< std::round(color.r * 255) << ";"
+		<< std::round(color.g * 255) << ";"
+		<< std::round(color.b * 255) << "m";
+}
+void Style::apply() const {
+	std::cout << "\e[38;2;"
+		<< std::round(color.r * 255) << ";"
+		<< std::round(color.g * 255) << ";"
+		<< std::round(color.b * 255) << ";"
+		<< (bold ? 1 : 22) << ";"
+		<< (italic ? 3 : 23) << "m";
+}
+void Style::clear() {
+	std::cout << "\e[m";
+}
 
-class Color {
-	static constexpr float hue_function(float h) {
-		return h <= 60.f ? (h / 60.f) : h <= 180.f ? 1.f : h <= 240.f ? (4.f - h / 60.f) : 0.f;
-	}
-	static constexpr Color hue(float h) {
-		return Color(
-			hue_function(h < 240.f ? h + 120.f : h - 240.f),
-			hue_function(h),
-			hue_function(h < 120.f ? h + 240.f : h - 120.f)
-		);
-	}
-public:
-	float r;
-	float g;
-	float b;
-	float a;
-	constexpr Color(float r, float g, float b, float a = 1.f): r(r), g(g), b(b), a(a) {}
-	constexpr Color operator +(const Color& c) const {
-		return Color(
-			(r * a * (1.f - c.a) + c.r * c.a) / (a * (1.f - c.a) + c.a),
-			(g * a * (1.f - c.a) + c.g * c.a) / (a * (1.f - c.a) + c.a),
-			(b * a * (1.f - c.a) + c.b * c.a) / (a * (1.f - c.a) + c.a),
-			a * (1.f - c.a) + c.a
-		);
-	}
-	static constexpr Color hsv(float h, float s, float v) {
-		return hue(h) + Color(1.f, 1.f, 1.f, 1.f - s / 100.f) + Color(0.f, 0.f, 0.f, 1.f - v / 100.f);
-	}
-	static constexpr Color hsl(float h, float s, float l) {
-		return hue(h) + Color(.5f, .5f, .5f, 1.f - s / 100.f) + (l < 50.f ? Color(0.f, 0.f, 0.f, 1.f - l / 50.f) : Color(1.f, 1.f, 1.f, l / 50.f - 1.f));
-	}
-	constexpr Color with_alpha(float a) const {
-		return Color(r, g, b, this->a * a);
-	}
-};
-
-class Style {
-public:
-	static constexpr int BOLD = 1 << 0;
-	static constexpr int ITALIC = 1 << 1;
-	Color color;
-	bool bold;
-	bool italic;
-	constexpr Style(const Color& color, bool bold, bool italic): color(color), bold(bold), italic(italic) {}
-	constexpr Style(const Color& color, int attributes = 0): color(color), bold(attributes & BOLD), italic(attributes & ITALIC) {}
-	static void set_background_color(const Color& color) {
-		std::cout << "\e[48;2;"
-			<< std::round(color.r * 255) << ";"
-			<< std::round(color.g * 255) << ";"
-			<< std::round(color.b * 255) << "m";
-	}
-	void apply() const {
-		std::cout << "\e[38;2;"
-			<< std::round(color.r * 255) << ";"
-			<< std::round(color.g * 255) << ";"
-			<< std::round(color.b * 255) << ";"
-			<< (bold ? 1 : 22) << ";"
-			<< (italic ? 3 : 23) << "m";
-	}
-	static void clear() {
-		std::cout << "\e[m";
-	}
-	static constexpr int INHERIT = 0;
-	static constexpr int WORD = 1;
-	static constexpr int DEFAULT = 2;
-	static constexpr int COMMENT = 3;
-	static constexpr int KEYWORD = 4;
-	static constexpr int OPERATOR = 5;
-	static constexpr int TYPE = 6;
-	static constexpr int LITERAL = 7;
-	static constexpr int STRING = 8;
-	static constexpr int FUNCTION = 9;
-};
-
-struct Theme {
-	Color background;
-	Color selection;
-	Color cursor;
-	Style styles[8];
-};
-
-constexpr Theme one_dark_theme = {
+const Theme one_dark_theme = {
 	Color::hsl(220, 13, 18), // background
 	Color::hsl(220, 13, 18 + 10), // selection
 	Color::hsl(220, 100, 66), // cursor
@@ -156,59 +37,6 @@ constexpr Theme one_dark_theme = {
 		Style(Color::hsl(29, 54, 61)), // literals
 		Style(Color::hsl(95, 38, 62)), // strings
 		Style(Color::hsl(207, 82, 66)) // function names
-	}
-};
-
-class Range {
-public:
-	std::size_t start;
-	std::size_t end;
-	Range() {}
-	constexpr Range(std::size_t start, std::size_t end): start(start), end(end) {}
-	constexpr Range operator |(const Range& range) const {
-		return Range(std::min(start, range.start), std::max(end, range.end));
-	}
-	constexpr Range operator &(const Range& range) const {
-		return Range(std::max(start, range.start), std::min(end, range.end));
-	}
-	constexpr operator bool() const {
-		return start < end;
-	}
-};
-
-class Span: public Range {
-public:
-	int style;
-	Span() {}
-	constexpr Span(std::size_t start, std::size_t end, int style): Range(start, end), style(style) {}
-	friend std::ostream& operator <<(std::ostream& os, const Span& span) {
-		return os << "(" << span.start << ", " << span.end << ") -> " << span.style;
-	}
-};
-
-class Input {
-public:
-	struct Chunk {
-		const void* chunk;
-		const char* data;
-		std::size_t size;
-	};
-	virtual ~Input() = default;
-	virtual std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const = 0;
-	virtual Chunk get_next_chunk(const void* chunk) const = 0;
-};
-
-class StringInput final: public Input {
-	const char* data_;
-	std::size_t size_;
-public:
-	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
-	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
-	std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const override {
-		return {{nullptr, data_, size_}, 0};
-	}
-	Chunk get_next_chunk(const void* chunk) const override {
-		return {nullptr, nullptr, 0};
 	}
 };
 
@@ -248,33 +76,25 @@ public:
 	}
 };
 
-class Tree {
-	struct Checkpoint {
-		std::size_t pos;
-		std::size_t max_pos;
+void Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
+	if (checkpoints.empty() || pos > checkpoints.back().pos) {
+		checkpoints.push_back({pos, max_pos});
+	}
+}
+std::size_t Tree::find_checkpoint(std::size_t pos) const {
+	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+		return checkpoint.pos > pos;
 	};
-	std::vector<Checkpoint> checkpoints;
-public:
-	void add_checkpoint(std::size_t pos, std::size_t max_pos) {
-		if (checkpoints.empty() || pos > checkpoints.back().pos) {
-			checkpoints.push_back({pos, max_pos});
-		}
-	}
-	std::size_t find_checkpoint(std::size_t pos) const {
-		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
-			return checkpoint.pos > pos;
-		};
-		auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
-		return iter != checkpoints.rend() ? iter->pos : 0;
-	}
-	void edit(std::size_t pos) {
-		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
-			return checkpoint.max_pos < pos;
-		};
-		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
-		checkpoints.erase(iter, checkpoints.end());
-	}
-};
+	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
+	return iter != checkpoints.rend() ? iter->pos : 0;
+}
+void Tree::edit(std::size_t pos) {
+	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+		return checkpoint.max_pos < pos;
+	};
+	auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+	checkpoints.erase(iter, checkpoints.end());
+}
 
 class Spans {
 	std::vector<Span>& spans;
@@ -668,7 +488,7 @@ template <class... T> constexpr auto c_keywords(T... arguments) {
 	return choice(c_keyword(arguments)...);
 }
 
-static void initialize() {
+void initialize() {
 	scopes["c"] = scope(
 		one_or_more(c_whitespace_char),
 		highlight(Style::COMMENT, choice(
@@ -719,55 +539,10 @@ static void initialize() {
 	);
 }
 
-static std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
+std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
 	Cursor cursor(input, tree, spans, window_start, window_end);
 	root_scope(language).match(cursor);
 	cursor.change_style(Style::DEFAULT);
 	return spans;
-}
-
-static std::vector<char> read_file(const char* file_name) {
-	std::ifstream file(file_name);
-	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-}
-
-template <class T> static void print(const T& file, const std::vector<Span>& spans) {
-	for (const Span& span: spans) {
-		one_dark_theme.styles[span.style - Style::DEFAULT].apply();
-		std::cout.write(file.data() + span.start, span.end - span.start);
-	}
-}
-
-static void highlight(const char* file_name, const char* language) {
-	const auto file = read_file(file_name);
-	StringInput input(file.data(), file.size());
-	Tree tree;
-	std::vector<Span> spans = highlight(language, &input, tree, 0, file.size());
-	Style::set_background_color(one_dark_theme.background);
-	std::cout << '\n';
-	print(file, spans);
-	Style::clear();
-	std::cout << '\n';
-}
-
-static void highlight_incremental(const char* file_name, const char* language) {
-	const auto file = read_file(file_name);
-	StringInput input(file.data(), file.size());
-	Tree tree;
-	Style::set_background_color(one_dark_theme.background);
-	std::cout << '\n';
-	for (std::size_t i = 0; i < file.size(); i += 1000) {
-		std::vector<Span> spans = highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
-		print(file, spans);
-	}
-	Style::clear();
-	std::cout << '\n';
-}
-
-int main(int argc, char** argv) {
-	initialize();
-	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const char* language = argc > 2 ? argv[2] : "c";
-	highlight(file_name, language);
 }

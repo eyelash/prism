@@ -1,272 +1,197 @@
 #pragma once
 
-#include <memory>
+#include <cstddef>
+#include <utility>
+#include <algorithm>
 #include <vector>
-#include <array>
 
-class SourceNode {
-	std::size_t length;
-	std::vector<std::unique_ptr<SourceNode>> children;
+class StringView {
+	const char* data_;
+	std::size_t size_;
+public:
+	static constexpr int strncmp(const char* s0, const char* s1, std::size_t n) {
+		return n == 0 ? 0 : *s0 != *s1 ? *s0 - *s1 : strncmp(s0 + 1, s1 + 1, n - 1);
+	}
+	static constexpr const char* strchr(const char* s, char c) {
+		return *s == c ? s : *s == '\0' ? nullptr : strchr(s + 1, c);
+	}
+	static constexpr std::size_t strlen(const char* s) {
+		return strchr(s, '\0') - s;
+	}
+	constexpr StringView(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
+	constexpr StringView(const char* s): StringView(s, strlen(s)) {}
+	constexpr StringView(): StringView(nullptr, 0) {}
+	constexpr const char* data() const {
+		return data_;
+	}
+	constexpr std::size_t size() const {
+		return size_;
+	}
+	constexpr char operator [](std::size_t i) const {
+		return data_[i];
+	}
+	constexpr char operator *() const {
+		return *data_;
+	}
+	constexpr operator bool() const {
+		return data_ != nullptr;
+	}
+	constexpr bool operator ==(const StringView& s) const {
+		return size_ != s.size_ ? false : strncmp(data_, s.data_, size_) == 0;
+	}
+	constexpr bool operator !=(const StringView& s) const {
+		return !operator ==(s);
+	}
+	constexpr bool operator <(const StringView& s) const {
+		return size_ != s.size_ ? size_ < s.size_ : strncmp(data_, s.data_, size_) < 0;
+	}
+	constexpr const char* begin() const {
+		return data_;
+	}
+	constexpr const char* end() const {
+		return data_ + size_;
+	}
+	constexpr StringView substr(std::size_t pos, std::size_t count) const {
+		return StringView(data_ + pos, count);
+	}
+	constexpr StringView substr(std::size_t pos) const {
+		return StringView(data_ + pos, size_ - pos);
+	}
+};
+
+class Color {
+	static constexpr float hue_function(float h) {
+		return h <= 60.f ? (h / 60.f) : h <= 180.f ? 1.f : h <= 240.f ? (4.f - h / 60.f) : 0.f;
+	}
+	static constexpr Color hue(float h) {
+		return Color(
+			hue_function(h < 240.f ? h + 120.f : h - 240.f),
+			hue_function(h),
+			hue_function(h < 120.f ? h + 240.f : h - 120.f)
+		);
+	}
+public:
+	float r;
+	float g;
+	float b;
+	float a;
+	constexpr Color(float r, float g, float b, float a = 1.f): r(r), g(g), b(b), a(a) {}
+	constexpr Color operator +(const Color& c) const {
+		return Color(
+			(r * a * (1.f - c.a) + c.r * c.a) / (a * (1.f - c.a) + c.a),
+			(g * a * (1.f - c.a) + c.g * c.a) / (a * (1.f - c.a) + c.a),
+			(b * a * (1.f - c.a) + c.b * c.a) / (a * (1.f - c.a) + c.a),
+			a * (1.f - c.a) + c.a
+		);
+	}
+	static constexpr Color hsv(float h, float s, float v) {
+		return hue(h) + Color(1.f, 1.f, 1.f, 1.f - s / 100.f) + Color(0.f, 0.f, 0.f, 1.f - v / 100.f);
+	}
+	static constexpr Color hsl(float h, float s, float l) {
+		return hue(h) + Color(.5f, .5f, .5f, 1.f - s / 100.f) + (l < 50.f ? Color(0.f, 0.f, 0.f, 1.f - l / 50.f) : Color(1.f, 1.f, 1.f, l / 50.f - 1.f));
+	}
+	constexpr Color with_alpha(float a) const {
+		return Color(r, g, b, this->a * a);
+	}
+};
+
+class Style {
+public:
+	static constexpr int BOLD = 1 << 0;
+	static constexpr int ITALIC = 1 << 1;
+	Color color;
+	bool bold;
+	bool italic;
+	constexpr Style(const Color& color, bool bold, bool italic): color(color), bold(bold), italic(italic) {}
+	constexpr Style(const Color& color, int attributes = 0): color(color), bold(attributes & BOLD), italic(attributes & ITALIC) {}
+	static void set_background_color(const Color& color);
+	void apply() const;
+	static void clear();
+	static constexpr int INHERIT = 0;
+	static constexpr int WORD = 1;
+	static constexpr int DEFAULT = 2;
+	static constexpr int COMMENT = 3;
+	static constexpr int KEYWORD = 4;
+	static constexpr int OPERATOR = 5;
+	static constexpr int TYPE = 6;
+	static constexpr int LITERAL = 7;
+	static constexpr int STRING = 8;
+	static constexpr int FUNCTION = 9;
+};
+
+struct Theme {
+	Color background;
+	Color selection;
+	Color cursor;
+	Style styles[8];
+};
+
+class Range {
+public:
+	std::size_t start;
+	std::size_t end;
+	Range() {}
+	constexpr Range(std::size_t start, std::size_t end): start(start), end(end) {}
+	constexpr Range operator |(const Range& range) const {
+		return Range(std::min(start, range.start), std::max(end, range.end));
+	}
+	constexpr Range operator &(const Range& range) const {
+		return Range(std::max(start, range.start), std::min(end, range.end));
+	}
+	constexpr operator bool() const {
+		return start < end;
+	}
+};
+
+class Span: public Range {
+public:
 	int style;
+	Span() {}
+	constexpr Span(std::size_t start, std::size_t end, int style): Range(start, end), style(style) {}
+	/*friend std::ostream& operator <<(std::ostream& os, const Span& span) {
+		return os << "(" << span.start << ", " << span.end << ") -> " << span.style;
+	}*/
+};
+
+class Input {
 public:
-	SourceNode(std::size_t length, int style = 0): length(length), style(style) {}
-	SourceNode(std::size_t length, std::unique_ptr<SourceNode>&& child, int style = 0): length(length), style(style) {
-		children.emplace_back(std::move(child));
-	}
-	SourceNode(std::size_t length, std::vector<std::unique_ptr<SourceNode>>&& children, int style = 0): length(length), children(std::move(children)), style(style) {}
-	std::size_t get_length() const {
-		return length;
-	}
-	const std::vector<std::unique_ptr<SourceNode>>& get_children() const {
-		return children;
-	}
-	int get_style() const {
-		return style;
-	}
-};
-
-class LanguageNode {
-public:
-	virtual std::unique_ptr<SourceNode> match(const char*& c) = 0;
-};
-
-class CharacterClass: public LanguageNode {
-	std::array<unsigned char, 256 / 8> characters;
-public:
-	CharacterClass() {
-		for (unsigned int i = 0; i < 256 / 8; ++i) {
-			characters[i] = 0;
-		}
-	}
-	void add_character(unsigned char c) {
-		const unsigned int byte_index = c / 8;
-		const unsigned int bit_index = c % 8;
-		characters[byte_index] |= 1 << bit_index;
-	}
-	void add_range(unsigned char first, unsigned char last) {
-		for (unsigned int i = first; i <= last; ++i) {
-			add_character(i);
-		}
-	}
-	void invert() {
-		for (unsigned int i = 0; i < 256 / 8; ++i) {
-			characters[i] = ~characters[i];
-		}
-	}
-	bool check(unsigned char c) const {
-		const unsigned int byte_index = c / 8;
-		const unsigned int bit_index = c % 8;
-		return characters[byte_index] & 1 << bit_index;
-	}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		const char* begin = c;
-		if (*c && check(*c)) {
-			++c;
-			return std::make_unique<SourceNode>(c - begin);
-		}
-		return nullptr;
-	}
-};
-
-class Sequence: public LanguageNode {
-	std::vector<std::unique_ptr<LanguageNode>> children;
-public:
-	void add_child(std::unique_ptr<LanguageNode>&& child) {
-		children.push_back(std::move(child));
-	}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		const char* begin = c;
-		std::vector<std::unique_ptr<SourceNode>> source_children;
-		for (auto& child: children) {
-			if (auto source_node = child->match(c)) {
-				source_children.emplace_back(std::move(source_node));
-			}
-			else {
-				c = begin;
-				return nullptr;
-			}
-		}
-		return std::make_unique<SourceNode>(c - begin, std::move(source_children));
-	}
-};
-
-class Choice: public LanguageNode {
-	std::vector<std::unique_ptr<LanguageNode>> children;
-public:
-	void add_child(std::unique_ptr<LanguageNode>&& child) {
-		children.push_back(std::move(child));
-	}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		for (auto& child: children) {
-			if (auto source_node = child->match(c)) {
-				return source_node;
-			}
-		}
-		return nullptr;
-	}
-};
-
-class Repetition: public LanguageNode {
-	std::unique_ptr<LanguageNode> child;
-	unsigned int min_repetitions;
-	unsigned int max_repetitions;
-public:
-	Repetition(std::unique_ptr<LanguageNode>&& child, unsigned int min_repetitions = 0, unsigned int max_repetitions = -1): child(std::move(child)), min_repetitions(min_repetitions), max_repetitions(max_repetitions) {}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		const char* begin = c;
-		std::vector<std::unique_ptr<SourceNode>> source_children;
-		for (unsigned int i = 0; i < min_repetitions; ++i) {
-			if (auto source_node = child->match(c)) {
-				source_children.emplace_back(std::move(source_node));
-			}
-			else {
-				c = begin;
-				return nullptr;
-			}
-		}
-		for (unsigned int i = min_repetitions; i < max_repetitions; ++i) {
-			if (auto source_node = child->match(c)) {
-				source_children.emplace_back(std::move(source_node));
-			}
-			else {
-				break;
-			}
-		}
-		return std::make_unique<SourceNode>(c - begin, std::move(source_children));
-	}
-};
-
-class Not: public LanguageNode {
-	std::unique_ptr<LanguageNode> child;
-public:
-	Not(std::unique_ptr<LanguageNode>&& child): child(std::move(child)) {}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		const char* begin = c;
-		if (child->match(c)) {
-			c = begin;
-			return nullptr;
-		}
-		else {
-			return std::make_unique<SourceNode>(0);
-		}
-	}
-};
-
-class Reference: public LanguageNode {
-	std::unique_ptr<LanguageNode>& node;
-public:
-	Reference(std::unique_ptr<LanguageNode>& node): node(node) {}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		return node->match(c);
-	}
-};
-
-class Highlight: public LanguageNode {
-	int style;
-	std::unique_ptr<LanguageNode> child;
-public:
-	Highlight(int style, std::unique_ptr<LanguageNode>&& child): style(style), child(std::move(child)) {}
-	std::unique_ptr<SourceNode> match(const char*& c) override {
-		const char* begin = c;
-		if (auto source_node = child->match(c)) {
-			return std::make_unique<SourceNode>(c - begin, std::move(source_node), style);
-		}
-		else {
-			return nullptr; 
-		}
-	}
-};
-
-inline auto invert = [](CharacterClass& cc) {
-	cc.invert();
-};
-
-inline auto add_character(char c) {
-	return [=](CharacterClass& cc) {
-		cc.add_character(c);
+	struct Chunk {
+		const void* chunk;
+		const char* data;
+		std::size_t size;
 	};
-}
+	virtual ~Input() = default;
+	virtual std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const = 0;
+	virtual Chunk get_next_chunk(const void* chunk) const = 0;
+};
 
-inline auto add_range(char first, char last) {
-	return [=](CharacterClass& cc) {
-		cc.add_range(first, last);
-	};
-}
-
-template <class... A> std::unique_ptr<LanguageNode> character_class(A... arguments) {
-	auto result = std::make_unique<CharacterClass>();
-	(arguments(*result), ...);
-	return result;
-}
-
-inline std::unique_ptr<LanguageNode> character(char c) {
-	return character_class(add_character(c));
-}
-
-inline std::unique_ptr<LanguageNode> range(char first, char last) {
-	return character_class(add_range(first, last));
-}
-
-inline std::unique_ptr<LanguageNode> any_character() {
-	return character_class(invert);
-}
-
-inline std::unique_ptr<LanguageNode> string(const char* s) {
-	auto result = std::make_unique<Sequence>();
-	for (; *s; ++s) {
-		result->add_child(character(*s));
+class StringInput final: public Input {
+	const char* data_;
+	std::size_t size_;
+public:
+	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
+	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
+	std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const override {
+		return {{nullptr, data_, size_}, 0};
 	}
-	return result;
-}
+	Chunk get_next_chunk(const void* chunk) const override {
+		return {nullptr, nullptr, 0};
+	}
+};
 
-inline std::unique_ptr<LanguageNode> get_language_node(char c) {
-	return character(c);
-}
+class Tree {
+	struct Checkpoint {
+		std::size_t pos;
+		std::size_t max_pos;
+	};
+	std::vector<Checkpoint> checkpoints;
+public:
+	void add_checkpoint(std::size_t pos, std::size_t max_pos);
+	std::size_t find_checkpoint(std::size_t pos) const;
+	void edit(std::size_t pos);
+};
 
-inline std::unique_ptr<LanguageNode> get_language_node(const char* s) {
-	return string(s);
-}
+extern const Theme one_dark_theme;
 
-inline std::unique_ptr<LanguageNode> get_language_node(std::unique_ptr<LanguageNode>&& language_node) {
-	return std::move(language_node);
-}
-
-template <class... A> std::unique_ptr<LanguageNode> sequence(A&&... children) {
-	auto result = std::make_unique<Sequence>();
-	(result->add_child(get_language_node(std::forward<A>(children))), ...);
-	return result;
-}
-
-template <class... A> std::unique_ptr<LanguageNode> choice(A&&... children) {
-	auto result = std::make_unique<Choice>();
-	(result->add_child(get_language_node(std::forward<A>(children))), ...);
-	return result;
-}
-
-template <class A> std::unique_ptr<LanguageNode> optional(A&& child) {
-	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 0, 1);
-}
-
-template <class A> std::unique_ptr<LanguageNode> zero_or_more(A&& child) {
-	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 0);
-}
-
-template <class A> std::unique_ptr<LanguageNode> one_or_more(A&& child) {
-	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)), 1);
-}
-
-template <class A> std::unique_ptr<LanguageNode> repetition(A&& child) {
-	return std::make_unique<Repetition>(get_language_node(std::forward<A>(child)));
-}
-
-template <class A> std::unique_ptr<LanguageNode> not_(A&& child) {
-	return std::make_unique<Not>(get_language_node(std::forward<A>(child)));
-}
-
-inline std::unique_ptr<LanguageNode> reference(std::unique_ptr<LanguageNode>& node) {
-	return std::make_unique<Reference>(node);
-}
-
-template <class A> std::unique_ptr<LanguageNode> highlight(int style, A&& child) {
-	return std::make_unique<Highlight>(style, get_language_node(std::forward<A>(child)));
-}
+void initialize();
+std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);
