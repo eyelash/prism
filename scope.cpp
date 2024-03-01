@@ -39,6 +39,15 @@ public:
 	constexpr operator bool() const {
 		return data_ != nullptr;
 	}
+	constexpr bool operator ==(const StringView& s) const {
+		return size_ != s.size_ ? false : strncmp(data_, s.data_, size_) == 0;
+	}
+	constexpr bool operator !=(const StringView& s) const {
+		return !operator ==(s);
+	}
+	constexpr bool operator <(const StringView& s) const {
+		return size_ != s.size_ ? size_ < s.size_ : strncmp(data_, s.data_, size_) < 0;
+	}
 	constexpr const char* begin() const {
 		return data_;
 	}
@@ -547,26 +556,26 @@ class ScopeWrapper {
 	class Interface {
 	public:
 		virtual ~Interface() = default;
-		virtual void match(Cursor&) const = 0;
+		virtual bool match(Cursor&) const = 0;
 	};
 	template <class T> class Implementation final: public Interface {
 		T t;
 	public:
 		constexpr Implementation(T t): t(t) {}
-		void match(Cursor& cursor) const override {
-			t.match(cursor);
+		bool match(Cursor& cursor) const override {
+			return t.match(cursor);
 		}
 	};
 	std::unique_ptr<Interface> scope;
 public:
 	ScopeWrapper() {}
 	template <class T> ScopeWrapper(T t): scope(std::make_unique<Implementation<T>>(t)) {}
-	void match(Cursor& cursor) const {
-		scope->match(cursor);
+	bool match(Cursor& cursor) const {
+		return scope->match(cursor);
 	}
 };
 
-static std::map<const char*, ScopeWrapper> scopes;
+static std::map<StringView, ScopeWrapper> scopes;
 
 template <class... T> class Scope {
 	Tuple<T...> tuple;
@@ -580,16 +589,29 @@ template <class... T> class Scope {
 	}
 public:
 	constexpr Scope(T... t): tuple(t...) {}
-	void match(Cursor& cursor) const {
+	bool match(Cursor& cursor) const {
 		cursor.skip_to_checkpoint();
 		while (cursor.is_before_window_end() && match_single(cursor)) {
 			cursor.add_checkpoint();
 		}
+		return true;
+	}
+};
+
+class ScopeReference {
+	const char* name;
+public:
+	constexpr ScopeReference(const char* name): name(name) {}
+	bool match(Cursor& cursor) const {
+		return scopes[name].match(cursor);
 	}
 };
 
 template <class... T> constexpr auto scope(T... t) {
 	return Scope(get_language_node(t)...);
+}
+constexpr auto scope(const char* name) {
+	return ScopeReference(name);
 }
 
 constexpr auto c_whitespace_char = choice(' ', '\t', '\n', '\r', '\v', '\f');
