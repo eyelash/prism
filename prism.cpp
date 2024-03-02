@@ -460,10 +460,14 @@ struct Language {
 	void (*init)();
 };
 
+constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
+
 #include "languages/c.hpp"
+#include "languages/python.hpp"
 
 constexpr std::initializer_list<Language> languages = {
 	c_language,
+	python_language,
 };
 
 void initialize() {
