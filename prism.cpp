@@ -470,7 +470,7 @@ constexpr std::initializer_list<Language> languages = {
 	python_language,
 };
 
-void initialize() {
+static void initialize() {
 	for (const Language& language: languages) {
 		language.init();
 	}
@@ -486,6 +486,9 @@ const char* get_language(const char* file_name) {
 }
 
 std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
+	if (scopes.empty()) {
+		initialize();
+	}
 	std::vector<Span> spans;
 	Cursor cursor(input, tree, spans, window_start, window_end);
 	root_scope(language).match(cursor);

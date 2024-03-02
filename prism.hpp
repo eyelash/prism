@@ -201,6 +201,5 @@ public:
 };
 
 const Theme& get_theme(const char* name);
-void initialize();
 const char* get_language(const char* file_name);
 std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);

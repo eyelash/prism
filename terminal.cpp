@@ -61,7 +61,6 @@ static void highlight_incremental(const char* file_name, const char* language, c
 }
 
 int main(int argc, char** argv) {
-	initialize();
 	const Theme& theme = get_theme("one-dark");
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
 	const char* language = argc > 2 ? argv[2] : get_language(file_name);
