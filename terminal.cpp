@@ -37,8 +37,8 @@ template <class T> static void print(const T& file, const std::vector<Span>& spa
 static void highlight(const char* file_name, const char* language, const Theme& theme) {
 	const auto file = read_file(file_name);
 	StringInput input(file.data(), file.size());
-	Tree tree;
-	std::vector<Span> spans = highlight(language, &input, tree, 0, file.size());
+	prism::Tree tree;
+	std::vector<Span> spans = prism::highlight(language, &input, tree, 0, file.size());
 	set_background_color(theme.background);
 	std::cout << '\n';
 	print(file, spans, theme);
@@ -49,11 +49,11 @@ static void highlight(const char* file_name, const char* language, const Theme& 
 static void highlight_incremental(const char* file_name, const char* language, const Theme& theme) {
 	const auto file = read_file(file_name);
 	StringInput input(file.data(), file.size());
-	Tree tree;
+	prism::Tree tree;
 	set_background_color(theme.background);
 	std::cout << '\n';
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
-		std::vector<Span> spans = highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
+		std::vector<Span> spans = prism::highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
 		print(file, spans, theme);
 	}
 	clear_style();
@@ -61,9 +61,9 @@ static void highlight_incremental(const char* file_name, const char* language, c
 }
 
 int main(int argc, char** argv) {
-	const Theme& theme = get_theme("one-dark");
+	const Theme& theme = prism::get_theme("one-dark");
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const char* language = argc > 2 ? argv[2] : get_language(file_name);
+	const char* language = argc > 2 ? argv[2] : prism::get_language(file_name);
 	if (language == nullptr) {
 		std::cerr << "prism does currently not support this language\n";
 	}

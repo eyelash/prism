@@ -8,7 +8,7 @@ constexpr std::initializer_list<Theme> themes = {
 	one_dark_theme,
 };
 
-const Theme& get_theme(const char* name) {
+const Theme& prism::get_theme(const char* name) {
 	for (const Theme& theme: themes) {
 		if (StringView(theme.name) == name) {
 			return theme;
@@ -53,19 +53,19 @@ public:
 	}
 };
 
-void Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
+void prism::Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	if (checkpoints.empty() || pos > checkpoints.back().pos) {
 		checkpoints.push_back({pos, max_pos});
 	}
 }
-std::size_t Tree::find_checkpoint(std::size_t pos) const {
+std::size_t prism::Tree::find_checkpoint(std::size_t pos) const {
 	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
 	};
 	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
 	return iter != checkpoints.rend() ? iter->pos : 0;
 }
-void Tree::edit(std::size_t pos) {
+void prism::Tree::edit(std::size_t pos) {
 	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.max_pos < pos;
 	};
@@ -118,12 +118,12 @@ public:
 
 class Cursor {
 	InputAdapter input;
-	Tree& tree;
+	prism::Tree& tree;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	Cursor(const Input* input, Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	Cursor(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -476,7 +476,7 @@ static void initialize() {
 	}
 }
 
-const char* get_language(const char* file_name) {
+const char* prism::get_language(const char* file_name) {
 	for (const Language& language: languages) {
 		if (language.match(file_name)) {
 			return language.scope;
@@ -485,7 +485,7 @@ const char* get_language(const char* file_name) {
 	return nullptr;
 }
 
-std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
+std::vector<Span> prism::highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
 	if (scopes.empty()) {
 		initialize();
 	}
