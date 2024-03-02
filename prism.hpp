@@ -57,6 +57,12 @@ public:
 	constexpr StringView substr(std::size_t pos) const {
 		return StringView(data_ + pos, size_ - pos);
 	}
+	constexpr bool starts_with(const StringView& s) const {
+		return size_ < s.size_ ? false : strncmp(data_, s.data_, s.size_) == 0;
+	}
+	constexpr bool ends_with(const StringView& s) const {
+		return size_ < s.size_ ? false : strncmp(data_ + size_ - s.size_, s.data_, s.size_) == 0;
+	}
 };
 
 class Color {
@@ -117,6 +123,7 @@ public:
 };
 
 struct Theme {
+	const char* name;
 	Color background;
 	Color selection;
 	Color cursor;
@@ -188,7 +195,7 @@ public:
 	void edit(std::size_t pos);
 };
 
-extern const Theme one_dark_theme;
-
+const Theme& get_theme(const char* name);
 void initialize();
+const char* get_language(const char* file_name);
 std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);

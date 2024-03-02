@@ -2,21 +2,20 @@
 #include <memory>
 #include <map>
 
-const Theme one_dark_theme = {
-	Color::hsl(220, 13, 18), // background
-	Color::hsl(220, 13, 18 + 10), // selection
-	Color::hsl(220, 100, 66), // cursor
-	{
-		Style(Color::hsl(220, 14, 71)), // text
-		Style(Color::hsl(220, 10, 40), Style::ITALIC), // comments
-		Style(Color::hsl(286, 60, 67)), // keywords
-		Style(Color::hsl(286, 60, 67)), // operators
-		Style(Color::hsl(187, 47, 55)), // types
-		Style(Color::hsl(29, 54, 61)), // literals
-		Style(Color::hsl(95, 38, 62)), // strings
-		Style(Color::hsl(207, 82, 66)) // function names
-	}
+#include "themes/one_dark.hpp"
+
+constexpr std::initializer_list<Theme> themes = {
+	one_dark_theme,
 };
+
+const Theme& get_theme(const char* name) {
+	for (const Theme& theme: themes) {
+		if (StringView(theme.name) == name) {
+			return theme;
+		}
+	}
+	return one_dark_theme;
+}
 
 class InputAdapter {
 	const Input* input;
@@ -455,66 +454,31 @@ constexpr auto root_scope(const char* name) {
 	return RootScope(name);
 }
 
-constexpr auto c_whitespace_char = choice(' ', '\t', '\n', '\r', '\v', '\f');
-constexpr auto c_identifier_begin_char = choice(range('a', 'z'), range('A', 'Z'), '_');
-constexpr auto c_identifier_char = choice(range('a', 'z'), range('A', 'Z'), '_', range('0', '9'));
-constexpr auto c_identifier = sequence(c_identifier_begin_char, zero_or_more(c_identifier_char));
-template <class T> constexpr auto c_keyword(T t) {
-	return sequence(t, not_(c_identifier_char));
-}
-template <class... T> constexpr auto c_keywords(T... arguments) {
-	return choice(c_keyword(arguments)...);
-}
+struct Language {
+	const char* scope;
+	bool (*match)(const StringView&);
+	void (*init)();
+};
+
+#include "languages/c.hpp"
+
+constexpr std::initializer_list<Language> languages = {
+	c_language,
+};
 
 void initialize() {
-	scopes["c"] = scope(
-		one_or_more(c_whitespace_char),
-		highlight(Style::COMMENT, choice(
-			nested_scope("/*", "*/"),
-			sequence("//", repetition(but('\n')))
-		)),
-		highlight(Style::STRING, sequence(
-			'"',
-			repetition(but(choice('"', '\n'))),
-			optional('"')
-		)),
-		highlight(Style::LITERAL, one_or_more(range('0', '9'))),
-		highlight(Style::KEYWORD, c_keywords(
-			"if",
-			"else",
-			"for",
-			"while",
-			"do",
-			"switch",
-			"case",
-			"default",
-			"goto",
-			"break",
-			"continue",
-			"return",
-			"struct",
-			"enum",
-			"union",
-			"typedef",
-			"const",
-			"static",
-			"extern",
-			"inline"
-		)),
-		highlight(Style::TYPE, c_keywords(
-			"void",
-			"char",
-			"short",
-			"int",
-			"long",
-			"float",
-			"double",
-			"unsigned",
-			"signed"
-		)),
-		highlight(Style::KEYWORD, sequence('#', optional(c_identifier))),
-		c_identifier
-	);
+	for (const Language& language: languages) {
+		language.init();
+	}
+}
+
+const char* get_language(const char* file_name) {
+	for (const Language& language: languages) {
+		if (language.match(file_name)) {
+			return language.scope;
+		}
+	}
+	return nullptr;
 }
 
 std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
