@@ -125,8 +125,13 @@ public:
 struct Theme {
 	const char* name;
 	Color background;
+	Color background_active;
 	Color selection;
 	Color cursor;
+	Color number_background;
+	Color number_background_active;
+	Style number;
+	Style number_active;
 	Style styles[8];
 };
 
