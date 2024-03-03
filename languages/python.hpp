@@ -1,4 +1,27 @@
 constexpr auto python_comment = sequence('#', repetition(but('\n')));
+constexpr auto python_escape = sequence('\\', any_char());
+constexpr auto python_string = choice(
+	sequence(
+		"\"\"\"",
+		repetition(choice(python_escape, but("\"\"\""))),
+		optional("\"\"\"")
+	),
+	sequence(
+		"'''",
+		repetition(choice(python_escape, but("'''"))),
+		optional("'''")
+	),
+	sequence(
+		'"',
+		repetition(choice(python_escape, but(choice('"', '\n')))),
+		optional('"')
+	),
+	sequence(
+		'\'',
+		repetition(choice(python_escape, but(choice('\'', '\n')))),
+		optional('\'')
+	)
+);
 
 constexpr Language python_language = {
 	"python",
@@ -9,6 +32,8 @@ constexpr Language python_language = {
 		scopes["python"] = scope(
 			// comments
 			highlight(Style::COMMENT, python_comment),
+			// strings
+			highlight(Style::STRING, python_string),
 			// literals
 			highlight(Style::LITERAL, c_keywords(
 				"None",
