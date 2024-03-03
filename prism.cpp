@@ -2,8 +2,8 @@
 #include <memory>
 #include <map>
 
-#include "themes/one_dark.hpp"
-#include "themes/monokai.hpp"
+#include "one_dark.hpp"
+#include "monokai.hpp"
 
 constexpr std::initializer_list<Theme> themes = {
 	one_dark_theme,
