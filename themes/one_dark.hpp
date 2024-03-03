@@ -1,3 +1,5 @@
+#include "prism.hpp"
+
 constexpr Theme one_dark_theme = {
 	"one-dark",
 	Color::hsl(220, 13, 18), // background

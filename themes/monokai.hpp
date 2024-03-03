@@ -1,3 +1,5 @@
+#include "prism.hpp"
+
 constexpr Theme monokai_theme = {
 	"monokai",
 	Color::hsl(70, 8, 15), // background

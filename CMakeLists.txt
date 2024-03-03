@@ -4,6 +4,7 @@ project(prism)
 include_directories(
     languages
     themes
+    ${PROJECT_SOURCE_DIR}
 )
 
 add_library(prism prism.cpp)
