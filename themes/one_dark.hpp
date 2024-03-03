@@ -16,6 +16,7 @@ constexpr Theme one_dark_theme = {
 		Style(Color::hsl(187, 47, 55)), // types
 		Style(Color::hsl(29, 54, 61)), // literals
 		Style(Color::hsl(95, 38, 62)), // strings
+		Style(Color::hsl(95, 38, 62)), // escape sequences
 		Style(Color::hsl(207, 82, 66)) // function names
 	}
 };

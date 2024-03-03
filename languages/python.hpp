@@ -3,22 +3,22 @@ constexpr auto python_escape = sequence('\\', any_char());
 constexpr auto python_string = choice(
 	sequence(
 		"\"\"\"",
-		repetition(choice(python_escape, but("\"\"\""))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		"'''",
-		repetition(choice(python_escape, but("'''"))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), but("'''"))),
 		optional("'''")
 	),
 	sequence(
 		'"',
-		repetition(choice(python_escape, but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(python_escape, but(choice('\'', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), but(choice('\'', '\n')))),
 		optional('\'')
 	)
 );

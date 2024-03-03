@@ -24,13 +24,13 @@ constexpr auto c_escape = sequence('\\', choice(
 constexpr auto c_string = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'"',
-	repetition(choice(c_escape, but(choice('"', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, c_escape), but(choice('"', '\n')))),
 	optional('"')
 );
 constexpr auto c_character = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'\'',
-	repetition(choice(c_escape, but(choice('\'', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, c_escape), but(choice('\'', '\n')))),
 	optional('\'')
 );
 constexpr auto c_digits = sequence(

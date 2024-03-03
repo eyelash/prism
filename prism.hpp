@@ -119,7 +119,8 @@ public:
 	static constexpr int TYPE = 6;
 	static constexpr int LITERAL = 7;
 	static constexpr int STRING = 8;
-	static constexpr int FUNCTION = 9;
+	static constexpr int ESCAPE = 9;
+	static constexpr int FUNCTION = 10;
 };
 
 struct Theme {
@@ -132,7 +133,7 @@ struct Theme {
 	Color number_background_active;
 	Style number;
 	Style number_active;
-	Style styles[8];
+	Style styles[9];
 };
 
 class Range {

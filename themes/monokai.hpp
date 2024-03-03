@@ -16,6 +16,7 @@ constexpr Theme monokai_theme = {
 		Style(Color::hsl(190, 81, 67), Style::ITALIC), // types
 		Style(Color::hsl(261, 100, 75)), // literals
 		Style(Color::hsl(54, 70, 68)), // strings
+		Style(Color::hsl(261, 100, 75)), // escape sequences
 		Style(Color::hsl(80, 76, 53)) // function names
 	}
 };
