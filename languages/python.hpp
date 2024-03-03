@@ -16,11 +16,18 @@ constexpr Language python_language = {
 				"True"
 			)),
 			// keywords
+			sequence(
+				highlight(Style::KEYWORD, c_keyword("def")),
+				zero_or_more(' '),
+				optional(highlight(Style::FUNCTION, c_identifier))
+			),
+			sequence(
+				highlight(Style::KEYWORD, c_keyword("class")),
+				zero_or_more(' '),
+				optional(highlight(Style::TYPE, c_identifier))
+			),
 			highlight(Style::KEYWORD, c_keywords(
 				"lambda",
-				"and",
-				"or",
-				"not",
 				"if",
 				"elif",
 				"else",
@@ -30,9 +37,15 @@ constexpr Language python_language = {
 				"break",
 				"continue",
 				"return",
-				"def",
-				"class",
 				"import"
+			)),
+			// operators
+			highlight(Style::OPERATOR, c_keywords(
+				"and",
+				"or",
+				"not",
+				"is",
+				"in"
 			))
 		);
 	}
