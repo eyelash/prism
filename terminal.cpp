@@ -60,10 +60,10 @@ static void highlight_incremental(const char* file_name, const char* language, c
 	std::cout << '\n';
 }
 
-int main(int argc, char** argv) {
-	const Theme& theme = prism::get_theme("one-dark");
+int main(int argc, const char** argv) {
 	const char* file_name = argc > 1 ? argv[1] : "test.c";
 	const char* language = argc > 2 ? argv[2] : prism::get_language(file_name);
+	const Theme& theme = prism::get_theme(argc > 3 ? argv[3] : "one-dark");
 	if (language == nullptr) {
 		std::cerr << "prism does currently not support this language\n";
 	}

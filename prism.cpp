@@ -3,9 +3,11 @@
 #include <map>
 
 #include "themes/one_dark.hpp"
+#include "themes/monokai.hpp"
 
 constexpr std::initializer_list<Theme> themes = {
 	one_dark_theme,
+	monokai_theme,
 };
 
 const Theme& prism::get_theme(const char* name) {
