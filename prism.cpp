@@ -298,6 +298,15 @@ public:
 	}
 };
 
+template <class F> class Recursive {
+	F f;
+public:
+	constexpr Recursive(F f): f(f) {}
+	bool parse(ParseContext& context) const {
+		return f(*this).parse(context);
+	}
+};
+
 constexpr auto get_language_node(char c) {
 	return Char([c](char i) {
 		return i == c;
@@ -349,6 +358,9 @@ template <class T> constexpr auto but(T child) {
 }
 constexpr auto end() {
 	return not_(any_char());
+}
+template <class F> constexpr auto recursive(F f) {
+	return Recursive(f);
 }
 
 class ScopeWrapper {
