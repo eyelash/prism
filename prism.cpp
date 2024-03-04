@@ -118,14 +118,14 @@ public:
 	}
 };
 
-class Cursor {
+class ParseContext {
 	InputAdapter input;
 	prism::Tree& tree;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	Cursor(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -162,9 +162,9 @@ template <class F> class Char {
 	F f;
 public:
 	constexpr Char(F f): f(f) {}
-	bool match(Cursor& cursor) const {
-		if (f(cursor.get())) {
-			cursor.advance();
+	bool parse(ParseContext& context) const {
+		if (f(context.get())) {
+			context.advance();
 			return true;
 		}
 		return false;
@@ -175,14 +175,14 @@ class String {
 	const char* string;
 public:
 	constexpr String(const char* string): string(string) {}
-	bool match(Cursor& cursor) const {
-		const auto save_point = cursor.save();
+	bool parse(ParseContext& context) const {
+		const auto save_point = context.save();
 		for (const char* s = string; *s != '\0'; ++s) {
-			if (cursor.get() == *s) {
-				cursor.advance();
+			if (context.get() == *s) {
+				context.advance();
 			}
 			else {
-				cursor.restore(save_point);
+				context.restore(save_point);
 				return false;
 			}
 		}
@@ -194,10 +194,10 @@ template <class... T> class Tuple;
 template <> class Tuple<> {
 public:
 	constexpr Tuple() {}
-	bool match_sequence(Cursor& cursor) const {
+	bool parse_sequence(ParseContext&) const {
 		return true;
 	}
-	bool match_choice(Cursor& cursor) const {
+	bool parse_choice(ParseContext&) const {
 		return false;
 	}
 };
@@ -206,14 +206,14 @@ template <class T0, class... T> class Tuple<T0, T...> {
 	Tuple<T...> t;
 public:
 	constexpr Tuple(T0 t0, T... t): t0(t0), t(t...) {}
-	bool match_sequence(Cursor& cursor) const {
-		const auto save_point = cursor.save();
-		if (t0.match(cursor)) {
-			if (t.match_sequence(cursor)) {
+	bool parse_sequence(ParseContext& context) const {
+		const auto save_point = context.save();
+		if (t0.parse(context)) {
+			if (t.parse_sequence(context)) {
 				return true;
 			}
 			else {
-				cursor.restore(save_point);
+				context.restore(save_point);
 				return false;
 			}
 		}
@@ -221,12 +221,12 @@ public:
 			return false;
 		}
 	}
-	bool match_choice(Cursor& cursor) const {
-		if (t0.match(cursor)) {
+	bool parse_choice(ParseContext& context) const {
+		if (t0.parse(context)) {
 			return true;
 		}
 		else {
-			return t.match_choice(cursor);
+			return t.parse_choice(context);
 		}
 	}
 };
@@ -235,8 +235,8 @@ template <class... T> class Sequence {
 	Tuple<T...> t;
 public:
 	constexpr Sequence(T... t): t(t...) {}
-	bool match(Cursor& cursor) const {
-		return t.match_sequence(cursor);
+	bool parse(ParseContext& context) const {
+		return t.parse_sequence(context);
 	}
 };
 
@@ -244,8 +244,8 @@ template <class... T> class Choice {
 	Tuple<T...> t;
 public:
 	constexpr Choice(T... t): t(t...) {}
-	bool match(Cursor& cursor) const {
-		return t.match_choice(cursor);
+	bool parse(ParseContext& context) const {
+		return t.parse_choice(context);
 	}
 };
 
@@ -253,8 +253,8 @@ template <class T> class Repetition {
 	T t;
 public:
 	constexpr Repetition(T t): t(t) {}
-	bool match(Cursor& cursor) const {
-		while (t.match(cursor)) {}
+	bool parse(ParseContext& context) const {
+		while (t.parse(context)) {}
 		return true;
 	}
 };
@@ -263,8 +263,8 @@ template <class T> class Optional {
 	T t;
 public:
 	constexpr Optional(T t): t(t) {}
-	bool match(Cursor& cursor) const {
-		t.match(cursor);
+	bool parse(ParseContext& context) const {
+		t.parse(context);
 		return true;
 	}
 };
@@ -273,10 +273,10 @@ template <class T> class Not {
 	T t;
 public:
 	constexpr Not(T t): t(t) {}
-	bool match(Cursor& cursor) const {
-		const auto save_point = cursor.save();
-		if (t.match(cursor)) {
-			cursor.restore(save_point);
+	bool parse(ParseContext& context) const {
+		const auto save_point = context.save();
+		if (t.parse(context)) {
+			context.restore(save_point);
 			return false;
 		}
 		else {
@@ -290,10 +290,10 @@ template <class T> class Highlight {
 	int style;
 public:
 	constexpr Highlight(T t, int style): t(t), style(style) {}
-	bool match(Cursor& cursor) const {
-		const int old_style = cursor.change_style(style);
-		const bool result = t.match(cursor);
-		cursor.change_style(old_style);
+	bool parse(ParseContext& context) const {
+		const int old_style = context.change_style(style);
+		const bool result = t.parse(context);
+		context.change_style(old_style);
 		return result;
 	}
 };
@@ -355,22 +355,22 @@ class ScopeWrapper {
 	class Interface {
 	public:
 		virtual ~Interface() = default;
-		virtual bool match(Cursor&) const = 0;
+		virtual bool parse(ParseContext&) const = 0;
 	};
 	template <class T> class Implementation final: public Interface {
 		T t;
 	public:
 		constexpr Implementation(T t): t(t) {}
-		bool match(Cursor& cursor) const override {
-			return t.match(cursor);
+		bool parse(ParseContext& context) const override {
+			return t.parse(context);
 		}
 	};
 	std::unique_ptr<Interface> scope;
 public:
 	ScopeWrapper() {}
 	template <class T> ScopeWrapper(T t): scope(std::make_unique<Implementation<T>>(t)) {}
-	bool match(Cursor& cursor) const {
-		return scope->match(cursor);
+	bool parse(ParseContext& context) const {
+		return scope->parse(context);
 	}
 };
 
@@ -380,8 +380,8 @@ template <class... T> class Scope {
 	Tuple<T...> tuple;
 public:
 	constexpr Scope(T... t): tuple(t...) {}
-	bool match(Cursor& cursor) const {
-		return tuple.match_choice(cursor);
+	bool parse(ParseContext& context) const {
+		return tuple.parse_choice(context);
 	}
 };
 
@@ -389,25 +389,25 @@ template <class S, class E, class... T> class NestedScope {
 	S start;
 	Tuple<T...> t;
 	E end;
-	bool match_single(Cursor& cursor) const {
-		if (!not_(end).match(cursor)) {
+	bool parse_single(ParseContext& context) const {
+		if (!not_(end).parse(context)) {
 			return false;
 		}
-		if (t.match_choice(cursor)) {
+		if (t.parse_choice(context)) {
 			return true;
 		}
 		else {
-			return any_char().match(cursor);
+			return any_char().parse(context);
 		}
 	}
 public:
 	constexpr NestedScope(S start, E end, T... t): start(start), t(t...), end(end) {}
-	bool match(Cursor& cursor) const {
-		if (!start.match(cursor)) {
+	bool parse(ParseContext& context) const {
+		if (!start.parse(context)) {
 			return false;
 		}
-		while (match_single(cursor)) {}
-		end.match(cursor);
+		while (parse_single(context)) {}
+		end.parse(context);
 		return true;
 	}
 };
@@ -416,28 +416,28 @@ class ScopeReference {
 	const char* name;
 public:
 	constexpr ScopeReference(const char* name): name(name) {}
-	bool match(Cursor& cursor) const {
-		return scopes[name].match(cursor);
+	bool parse(ParseContext& context) const {
+		return scopes[name].parse(context);
 	}
 };
 
 class RootScope {
 	const char* name;
-	static bool match_single(Cursor& cursor, const ScopeWrapper& scope) {
-		if (scope.match(cursor)) {
+	static bool parse_single(ParseContext& context, const ScopeWrapper& scope) {
+		if (scope.parse(context)) {
 			return true;
 		}
 		else {
-			return any_char().match(cursor);
+			return any_char().parse(context);
 		}
 	}
 public:
 	constexpr RootScope(const char* name): name(name) {}
-	bool match(Cursor& cursor) const {
+	bool parse(ParseContext& context) const {
 		const ScopeWrapper& scope = scopes[name];
-		cursor.skip_to_checkpoint();
-		while (cursor.is_before_window_end() && match_single(cursor, scope)) {
-			cursor.add_checkpoint();
+		context.skip_to_checkpoint();
+		while (context.is_before_window_end() && parse_single(context, scope)) {
+			context.add_checkpoint();
 		}
 		return true;
 	}
@@ -492,8 +492,8 @@ std::vector<Span> prism::highlight(const char* language, const Input* input, Tre
 		initialize();
 	}
 	std::vector<Span> spans;
-	Cursor cursor(input, tree, spans, window_start, window_end);
-	root_scope(language).match(cursor);
-	cursor.change_style(Style::DEFAULT);
+	ParseContext context(input, tree, spans, window_start, window_end);
+	root_scope(language).parse(context);
+	context.change_style(Style::DEFAULT);
 	return spans;
 }
