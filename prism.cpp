@@ -190,6 +190,15 @@ public:
 	}
 };
 
+class Function {
+	bool (*function)(ParseContext&);
+public:
+	constexpr Function(bool (*function)(ParseContext&)): function(function) {}
+	bool parse(ParseContext& context) const {
+		return function(context);
+	}
+};
+
 template <class... T> class Tuple;
 template <> class Tuple<> {
 public:
@@ -314,6 +323,9 @@ constexpr auto get_language_node(char c) {
 }
 constexpr String get_language_node(const char* s) {
 	return String(s);
+}
+constexpr Function get_language_node(bool (*f)(ParseContext&)) {
+	return Function(f);
 }
 template <class T> constexpr T get_language_node(T language_node) {
 	return language_node;
