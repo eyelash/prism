@@ -88,7 +88,34 @@ constexpr auto c_number = sequence(
 constexpr auto c_preprocessor = sequence(
 	'#',
 	zero_or_more(choice(' ', '\t')),
-	c_identifier
+	choice(
+		sequence(
+			c_keyword("include"),
+			zero_or_more(choice(' ', '\t')),
+			optional(highlight(Style::STRING, choice(
+				sequence(
+					'<',
+					repetition(but(choice('>', '\n'))),
+					optional('>')
+				),
+				sequence(
+					'"',
+					repetition(but(choice('"', '\n'))),
+					optional('"')
+				)
+			)))
+		),
+		c_keyword("define"),
+		c_keyword("undef"),
+		c_keyword(sequence(optional("el"), "if", optional(sequence(optional('n'), "def")))),
+		c_keyword("else"),
+		c_keyword("endif"),
+		c_keyword("error"),
+		c_keyword("warning"),
+		c_keyword("line"),
+		c_keyword("pragma"),
+		c_keyword("embed")
+	)
 );
 
 constexpr Language c_language = {
