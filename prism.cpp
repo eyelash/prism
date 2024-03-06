@@ -495,10 +495,14 @@ constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', '
 
 #include "languages/c.hpp"
 #include "languages/python.hpp"
+#include "languages/rust.hpp"
+#include "languages/haskell.hpp"
 
 constexpr std::initializer_list<Language> languages = {
 	c_language,
 	python_language,
+	rust_language,
+	haskell_language,
 };
 
 static void initialize() {
