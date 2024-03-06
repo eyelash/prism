@@ -119,12 +119,12 @@ constexpr auto c_preprocessor = sequence(
 );
 
 constexpr Language c_language = {
-	"c",
-	[](const StringView& file_name) {
-		return file_name.ends_with(".c");
+	"C",
+	[](ParseContext& context) {
+		return ends_with(".c").parse(context);
 	},
-	[]() {
-		scopes["c"] = scope(
+	[](ParseContext& context) {
+		return scope(
 			// whitespace
 			one_or_more(c_whitespace_char),
 			// comments
@@ -173,6 +173,6 @@ constexpr Language c_language = {
 			highlight(Style::KEYWORD, c_preprocessor),
 			// identifiers
 			c_identifier
-		);
+		).parse(context);
 	}
 };

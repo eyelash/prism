@@ -24,12 +24,12 @@ constexpr auto python_string = choice(
 );
 
 constexpr Language python_language = {
-	"python",
-	[](const StringView& file_name) {
-		return file_name.ends_with(".py");
+	"Python",
+	[](ParseContext& context) {
+		return ends_with(".py").parse(context);
 	},
-	[]() {
-		scopes["python"] = scope(
+	[](ParseContext& context) {
+		return scope(
 			// comments
 			highlight(Style::COMMENT, python_comment),
 			// strings
@@ -72,6 +72,6 @@ constexpr Language python_language = {
 				"is",
 				"in"
 			))
-		);
+		).parse(context);
 	}
 };

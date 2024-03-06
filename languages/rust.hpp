@@ -14,12 +14,12 @@ constexpr auto rust_comment = choice(
 );
 
 constexpr Language rust_language = {
-	"rust",
-	[](const StringView& file_name) {
-		return file_name.ends_with(".rs");
+	"Rust",
+	[](ParseContext& context) {
+		return ends_with(".rs").parse(context);
 	},
-	[]() {
-		scopes["rust"] = scope(
+	[](ParseContext& context) {
+		return scope(
 			// whitespace
 			one_or_more(c_whitespace_char),
 			// comments
@@ -67,6 +67,6 @@ constexpr Language rust_language = {
 			)),
 			// identifiers
 			c_identifier
-		);
+		).parse(context);
 	}
 };

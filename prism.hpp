@@ -136,6 +136,8 @@ struct Theme {
 	Style styles[9];
 };
 
+struct Language;
+
 class Range {
 public:
 	std::size_t start;
@@ -181,6 +183,9 @@ class StringInput final: public Input {
 public:
 	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
 	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
+	constexpr std::size_t size() const {
+		return size_;
+	}
 	std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const override {
 		return {{nullptr, data_, size_}, 0};
 	}
@@ -204,7 +209,7 @@ public:
 };
 
 const Theme& get_theme(const char* name);
-const char* get_language(const char* file_name);
-std::vector<Span> highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);
+const Language* get_language(const char* file_name);
+std::vector<Span> highlight(const Language* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);
 
 }

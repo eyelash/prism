@@ -16,12 +16,12 @@ constexpr auto haskell_comment = choice(
 );
 
 constexpr Language haskell_language = {
-	"haskell",
-	[](const StringView& file_name) {
-		return file_name.ends_with(".hs");
+	"Haskell",
+	[](ParseContext& context) {
+		return ends_with(".hs").parse(context);
 	},
-	[]() {
-		scopes["haskell"] = scope(
+	[](ParseContext& context) {
+		return scope(
 			// whitespace
 			one_or_more(c_whitespace_char),
 			// comments
@@ -49,6 +49,6 @@ constexpr Language haskell_language = {
 			highlight(Style::TYPE, sequence(range('A', 'Z'), repetition(haskell_identifier_char))),
 			// identifiers
 			sequence(choice(range('a', 'z'), '_'), repetition(haskell_identifier_char))
-		);
+		).parse(context);
 	}
 };

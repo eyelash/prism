@@ -22,8 +22,18 @@ static void clear_style() {
 	std::cout << "\e[m";
 }
 
-static std::vector<char> read_file(const char* file_name) {
-	std::ifstream file(file_name);
+static const char* get_file_name(const char* path) {
+	const char* file_name = path;
+	for (const char* i = path; *i != '\0'; ++i) {
+		if (*i == '/') {
+			file_name = i + 1;
+		}
+	}
+	return file_name;
+}
+
+static std::vector<char> read_file(const char* path) {
+	std::ifstream file(path);
 	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
@@ -34,8 +44,8 @@ template <class T> static void print(const T& file, const std::vector<Span>& spa
 	}
 }
 
-static void highlight(const char* file_name, const char* language, const Theme& theme) {
-	const auto file = read_file(file_name);
+static void highlight(const char* path, const Language* language, const Theme& theme) {
+	const auto file = read_file(path);
 	StringInput input(file.data(), file.size());
 	prism::Tree tree;
 	std::vector<Span> spans = prism::highlight(language, &input, tree, 0, file.size());
@@ -46,8 +56,8 @@ static void highlight(const char* file_name, const char* language, const Theme& 
 	std::cout << '\n';
 }
 
-static void highlight_incremental(const char* file_name, const char* language, const Theme& theme) {
-	const auto file = read_file(file_name);
+static void highlight_incremental(const char* path, const Language* language, const Theme& theme) {
+	const auto file = read_file(path);
 	StringInput input(file.data(), file.size());
 	prism::Tree tree;
 	set_background_color(theme.background);
@@ -61,13 +71,16 @@ static void highlight_incremental(const char* file_name, const char* language, c
 }
 
 int main(int argc, const char** argv) {
-	const char* file_name = argc > 1 ? argv[1] : "test.c";
-	const char* language = argc > 2 ? argv[2] : prism::get_language(file_name);
-	const Theme& theme = prism::get_theme(argc > 3 ? argv[3] : "one-dark");
+	if (argc <= 1) {
+		std::cerr << "Usage: " << argv[0] << " FILE [THEME]\n";
+		return 1;
+	}
+	const char* path = argv[1];
+	const Language* language = prism::get_language(get_file_name(path));
 	if (language == nullptr) {
 		std::cerr << "prism does currently not support this language\n";
+		return 1;
 	}
-	else {
-		highlight(file_name, language, theme);
-	}
+	const Theme& theme = prism::get_theme(argc > 2 ? argv[2] : "one-dark");
+	highlight(path, language, theme);
 }

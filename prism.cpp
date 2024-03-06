@@ -1,6 +1,5 @@
 #include "prism.hpp"
 #include <memory>
-#include <map>
 
 #include "themes/one_dark.hpp"
 #include "themes/monokai.hpp"
@@ -376,6 +375,10 @@ template <class T> constexpr auto but(T t) {
 constexpr auto end() {
 	return not_(any_char());
 }
+template <class T> constexpr auto ends_with(T t) {
+	const auto e = sequence(t, end());
+	return sequence(repetition(but(e)), e);
+}
 template <class F> constexpr auto recursive(F f) {
 	return Recursive(f);
 }
@@ -402,8 +405,6 @@ public:
 		return scope->parse(context);
 	}
 };
-
-static std::map<StringView, ScopeWrapper> scopes;
 
 template <class... T> class Scope {
 	Tuple<T...> tuple;
@@ -441,19 +442,10 @@ public:
 	}
 };
 
-class ScopeReference {
-	const char* name;
-public:
-	constexpr ScopeReference(const char* name): name(name) {}
-	bool parse(ParseContext& context) const {
-		return scopes[name].parse(context);
-	}
-};
-
-class RootScope {
-	const char* name;
-	static bool parse_single(ParseContext& context, const ScopeWrapper& scope) {
-		if (scope.parse(context)) {
+template <class T> class RootScope {
+	T t;
+	bool parse_single(ParseContext& context) const {
+		if (t.parse(context)) {
 			return true;
 		}
 		else {
@@ -461,11 +453,10 @@ class RootScope {
 		}
 	}
 public:
-	constexpr RootScope(const char* name): name(name) {}
+	constexpr RootScope(T t): t(t) {}
 	bool parse(ParseContext& context) const {
-		const ScopeWrapper& scope = scopes[name];
 		context.skip_to_checkpoint();
-		while (context.is_before_window_end() && parse_single(context, scope)) {
+		while (context.is_before_window_end() && parse_single(context)) {
 			context.add_checkpoint();
 		}
 		return true;
@@ -475,20 +466,17 @@ public:
 template <class... T> constexpr auto scope(T... t) {
 	return Scope(get_expression(t)...);
 }
-constexpr ScopeReference scope(const char* name) {
-	return ScopeReference(name);
-}
 template <class S, class E, class... T> constexpr auto nested_scope(S start, E end, T... t) {
 	return NestedScope(get_expression(start), get_expression(end), get_expression(t)...);
 }
-constexpr RootScope root_scope(const char* name) {
-	return RootScope(name);
+template <class T> constexpr auto root_scope(T t) {
+	return RootScope(get_expression(t));
 }
 
 struct Language {
-	const char* scope;
-	bool (*match)(const StringView&);
-	void (*init)();
+	const char* name;
+	bool (*parse_file_name)(ParseContext&);
+	bool (*parse)(ParseContext&);
 };
 
 constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
@@ -505,28 +493,23 @@ constexpr std::initializer_list<Language> languages = {
 	haskell_language,
 };
 
-static void initialize() {
+const Language* prism::get_language(const char* file_name) {
+	StringInput input(file_name);
+	Tree tree;
+	std::vector<Span> spans;
+	ParseContext context(&input, tree, spans, 0, input.size());
 	for (const Language& language: languages) {
-		language.init();
-	}
-}
-
-const char* prism::get_language(const char* file_name) {
-	for (const Language& language: languages) {
-		if (language.match(file_name)) {
-			return language.scope;
+		if (language.parse_file_name(context)) {
+			return &language;
 		}
 	}
 	return nullptr;
 }
 
-std::vector<Span> prism::highlight(const char* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
-	if (scopes.empty()) {
-		initialize();
-	}
+std::vector<Span> prism::highlight(const Language* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
 	ParseContext context(input, tree, spans, window_start, window_end);
-	root_scope(language).parse(context);
+	root_scope(language->parse).parse(context);
 	context.change_style(Style::DEFAULT);
 	return spans;
 }
