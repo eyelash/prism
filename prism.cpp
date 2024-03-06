@@ -163,11 +163,11 @@ template <class F> class Char {
 public:
 	constexpr Char(F f): f(f) {}
 	bool parse(ParseContext& context) const {
-		if (f(context.get())) {
-			context.advance();
-			return true;
+		if (!f(context.get())) {
+			return false;
 		}
-		return false;
+		context.advance();
+		return true;
 	}
 };
 
@@ -176,15 +176,20 @@ class String {
 public:
 	constexpr String(const char* string): string(string) {}
 	bool parse(ParseContext& context) const {
+		if (*string == '\0') {
+			return true;
+		}
+		if (context.get() != *string) {
+			return false;
+		}
 		const auto save_point = context.save();
-		for (const char* s = string; *s != '\0'; ++s) {
-			if (context.get() == *s) {
-				context.advance();
-			}
-			else {
+		context.advance();
+		for (const char* s = string + 1; *s != '\0'; ++s) {
+			if (context.get() != *s) {
 				context.restore(save_point);
 				return false;
 			}
+			context.advance();
 		}
 		return true;
 	}
