@@ -321,19 +321,19 @@ public:
 	}
 };
 
-constexpr auto get_language_node(char c) {
+constexpr auto get_expression(char c) {
 	return Char([c](char i) {
 		return i == c;
 	});
 }
-constexpr String get_language_node(const char* s) {
+constexpr String get_expression(const char* s) {
 	return String(s);
 }
-constexpr Function get_language_node(bool (*f)(ParseContext&)) {
+constexpr Function get_expression(bool (*f)(ParseContext&)) {
 	return Function(f);
 }
-template <class T> constexpr T get_language_node(T language_node) {
-	return language_node;
+template <class T> constexpr T get_expression(T expression) {
+	return expression;
 }
 
 constexpr auto range(char first, char last) {
@@ -347,31 +347,31 @@ constexpr auto any_char() {
 	});
 }
 template <class... T> constexpr auto sequence(T... t) {
-	return Sequence(get_language_node(t)...);
+	return Sequence(get_expression(t)...);
 }
 template <class... T> constexpr auto choice(T... t) {
-	return Choice(get_language_node(t)...);
+	return Choice(get_expression(t)...);
 }
-template <class T> constexpr auto repetition(T child) {
-	return Repetition(get_language_node(child));
+template <class T> constexpr auto repetition(T t) {
+	return Repetition(get_expression(t));
 }
-template <class T> constexpr auto optional(T child) {
-	return Optional(get_language_node(child));
+template <class T> constexpr auto optional(T t) {
+	return Optional(get_expression(t));
 }
-template <class T> constexpr auto not_(T child) {
-	return Not(get_language_node(child));
+template <class T> constexpr auto not_(T t) {
+	return Not(get_expression(t));
 }
-template <class T> constexpr auto highlight(int style, T child) {
-	return Highlight(get_language_node(child), style);
+template <class T> constexpr auto highlight(int style, T t) {
+	return Highlight(get_expression(t), style);
 }
-template <class T> constexpr auto zero_or_more(T child) {
-	return repetition(child);
+template <class T> constexpr auto zero_or_more(T t) {
+	return repetition(t);
 }
-template <class T> constexpr auto one_or_more(T child) {
-	return sequence(child, repetition(child));
+template <class T> constexpr auto one_or_more(T t) {
+	return sequence(t, repetition(t));
 }
-template <class T> constexpr auto but(T child) {
-	return sequence(not_(child), any_char());
+template <class T> constexpr auto but(T t) {
+	return sequence(not_(t), any_char());
 }
 constexpr auto end() {
 	return not_(any_char());
@@ -473,15 +473,15 @@ public:
 };
 
 template <class... T> constexpr auto scope(T... t) {
-	return Scope(get_language_node(t)...);
+	return Scope(get_expression(t)...);
 }
-constexpr auto scope(const char* name) {
+constexpr ScopeReference scope(const char* name) {
 	return ScopeReference(name);
 }
 template <class S, class E, class... T> constexpr auto nested_scope(S start, E end, T... t) {
-	return NestedScope(get_language_node(start), get_language_node(end), get_language_node(t)...);
+	return NestedScope(get_expression(start), get_expression(end), get_expression(t)...);
 }
-constexpr auto root_scope(const char* name) {
+constexpr RootScope root_scope(const char* name) {
 	return RootScope(name);
 }
 
