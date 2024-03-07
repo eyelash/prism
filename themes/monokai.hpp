@@ -1,3 +1,8 @@
+#ifndef MONOKAI_H
+#define MONOKAI_H
+
+#include "prism.hpp"
+
 constexpr Theme monokai_theme = {
 	"monokai",
 	Color::hsl(70, 8, 15), // background
@@ -20,3 +25,5 @@ constexpr Theme monokai_theme = {
 		Style(Color::hsl(80, 76, 53)) // function names
 	}
 };
+
+#endif 

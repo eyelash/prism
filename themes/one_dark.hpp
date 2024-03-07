@@ -1,3 +1,9 @@
+#ifndef ONE_DARK_H
+#define ONE_DARK_H
+
+
+#include "prism.hpp"
+
 constexpr Theme one_dark_theme = {
 	"one-dark",
 	Color::hsl(220, 13, 18), // background
@@ -20,3 +26,5 @@ constexpr Theme one_dark_theme = {
 		Style(Color::hsl(207, 82, 66)) // function names
 	}
 };
+
+#endif 

@@ -1,9 +1,9 @@
-#include "prism.hpp"
-#include <memory>
 #include <map>
+#include <memory>
 
-#include "themes/one_dark.hpp"
-#include "themes/monokai.hpp"
+#include "monokai.hpp"
+#include "one_dark.hpp"
+#include "prism.hpp"
 
 constexpr std::initializer_list<Theme> themes = {
 	one_dark_theme,
