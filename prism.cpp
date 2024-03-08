@@ -492,6 +492,7 @@ constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', '
 #include "languages/xml.hpp"
 #include "languages/python.hpp"
 #include "languages/rust.hpp"
+#include "languages/toml.hpp"
 #include "languages/haskell.hpp"
 
 constexpr Language languages[] = {
@@ -500,6 +501,7 @@ constexpr Language languages[] = {
 	{"XML", xml_file_name, xml_language},
 	{"Python", python_file_name, python_language},
 	{"Rust", rust_file_name, rust_language},
+	{"TOML", toml_file_name, toml_language},
 	{"Haskell", haskell_file_name, haskell_language},
 };
 
