@@ -488,12 +488,16 @@ struct Language {
 constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
 
 #include "languages/c.hpp"
+#include "languages/java.hpp"
+#include "languages/xml.hpp"
 #include "languages/python.hpp"
 #include "languages/rust.hpp"
 #include "languages/haskell.hpp"
 
 constexpr Language languages[] = {
 	{"C", c_file_name, c_language},
+	{"Java", java_file_name, java_language},
+	{"XML", xml_file_name, xml_language},
 	{"Python", python_file_name, python_language},
 	{"Rust", rust_file_name, rust_language},
 	{"Haskell", haskell_file_name, haskell_language},
