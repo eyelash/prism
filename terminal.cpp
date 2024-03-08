@@ -37,10 +37,20 @@ static std::vector<char> read_file(const char* path) {
 	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
-template <class T> static void print(const T& file, const std::vector<Span>& spans, const Theme& theme) {
+template <class T> static void print(const T& file, const std::vector<Span>& spans, const Theme& theme, std::size_t window_start, std::size_t window_end) {
+	std::size_t i = window_start;
 	for (const Span& span: spans) {
+		if (span.start > i) {
+			apply_style(theme.styles[0]);
+			std::cout.write(file.data() + i, span.start - i);
+		}
 		apply_style(theme.styles[span.style - Style::DEFAULT]);
 		std::cout.write(file.data() + span.start, span.end - span.start);
+		i = span.end;
+	}
+	if (window_end > i) {
+		apply_style(theme.styles[0]);
+		std::cout.write(file.data() + i, window_end - i);
 	}
 }
 
@@ -51,7 +61,7 @@ static void highlight(const char* path, const Language* language, const Theme& t
 	std::vector<Span> spans = prism::highlight(language, &input, tree, 0, file.size());
 	set_background_color(theme.background);
 	std::cout << '\n';
-	print(file, spans, theme);
+	print(file, spans, theme, 0, file.size());
 	clear_style();
 	std::cout << '\n';
 }
@@ -64,7 +74,7 @@ static void highlight_incremental(const char* path, const Language* language, co
 	std::cout << '\n';
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
 		std::vector<Span> spans = prism::highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
-		print(file, spans, theme);
+		print(file, spans, theme, i, std::min(i + 1000, file.size()));
 	}
 	clear_style();
 	std::cout << '\n';

@@ -85,7 +85,13 @@ class Spans {
 	std::size_t start = 0;
 	int style = Style::DEFAULT;
 	void emit_span(std::size_t end, const Range& window) {
+		if (start == end) {
+			return;
+		}
 		if (end <= window.start || start >= window.end) {
+			return;
+		}
+		if (style == Style::DEFAULT) {
 			return;
 		}
 		if (spans.size() > 0) {
@@ -100,10 +106,8 @@ class Spans {
 public:
 	Spans(std::vector<Span>& spans): spans(spans) {}
 	int change_style(std::size_t pos, int new_style, const Range& window) {
-		if (pos != start) {
-			emit_span(pos, window);
-			start = pos;
-		}
+		emit_span(pos, window);
+		start = pos;
 		const int old_style = style;
 		style = new_style;
 		return old_style;
