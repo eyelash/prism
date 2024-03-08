@@ -8,23 +8,29 @@ template <class... T> constexpr auto java_keywords(T... arguments) {
 	return choice(java_keyword(arguments)...);
 }
 
+constexpr auto java_escape = sequence('\\', choice(
+	'b', 't', 'n', 'f', 'r', 's',
+	'"', '\'', '\\',
+	one_or_more(range('0', '7')),
+	sequence(one_or_more('u'), one_or_more(hex_digit))
+));
 constexpr auto java_string = choice(
 	sequence(
 		"\"\"\"",
 		zero_or_more(' '),
 		'\n',
-		repetition(choice(c_escape, but("\"\"\""))),
+		repetition(choice(highlight(Style::ESCAPE, java_escape), but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		'"',
-		repetition(choice(c_escape, but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, java_escape), but(choice('"', '\n')))),
 		optional('"')
 	)
 );
 constexpr auto java_character = sequence(
 	'\'',
-	repetition(choice(c_escape, but(choice('\'', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, java_escape), but(choice('\'', '\n')))),
 	optional('\'')
 );
 
