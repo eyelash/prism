@@ -47,7 +47,7 @@ constexpr auto c_binary_digits = sequence(
 );
 constexpr auto c_number = sequence(
 	choice(
-		// hex
+		// hexadecimal
 		sequence(
 			'0',
 			choice('x', 'X'),
@@ -118,62 +118,60 @@ constexpr auto c_preprocessor = sequence(
 	)
 );
 
-constexpr Language c_language = {
-	"C",
-	[](ParseContext& context) {
-		return ends_with(".c").parse(context);
-	},
-	[](ParseContext& context) {
-		static constexpr auto expression = scope(
-			// whitespace
-			one_or_more(c_whitespace_char),
-			// comments
-			highlight(Style::COMMENT, c_comment),
-			// strings and characters
-			highlight(Style::STRING, c_string),
-			highlight(Style::STRING, c_character),
-			// numbers
-			highlight(Style::LITERAL, c_number),
-			// keywords
-			highlight(Style::KEYWORD, c_keywords(
-				"if",
-				"else",
-				"for",
-				"while",
-				"do",
-				"switch",
-				"case",
-				"default",
-				"goto",
-				"break",
-				"continue",
-				"return",
-				"struct",
-				"enum",
-				"union",
-				"typedef",
-				"const",
-				"static",
-				"extern",
-				"inline"
-			)),
-			// types
-			highlight(Style::TYPE, c_keywords(
-				"void",
-				"char",
-				"short",
-				"int",
-				"long",
-				"float",
-				"double",
-				"unsigned",
-				"signed"
-			)),
-			// preprocessor
-			highlight(Style::KEYWORD, c_preprocessor),
-			// identifiers
-			c_identifier
-		);
-		return expression.parse(context);
-	}
-};
+static bool c_file_name(ParseContext& context) {
+	return ends_with(".c").parse(context);
+}
+
+static bool c_language(ParseContext& context) {
+	static constexpr auto expression = scope(
+		// whitespace
+		c_whitespace_char,
+		// comments
+		highlight(Style::COMMENT, c_comment),
+		// strings and characters
+		highlight(Style::STRING, c_string),
+		highlight(Style::STRING, c_character),
+		// numbers
+		highlight(Style::LITERAL, c_number),
+		// keywords
+		highlight(Style::KEYWORD, c_keywords(
+			"if",
+			"else",
+			"for",
+			"while",
+			"do",
+			"switch",
+			"case",
+			"default",
+			"goto",
+			"break",
+			"continue",
+			"return",
+			"struct",
+			"enum",
+			"union",
+			"typedef",
+			"const",
+			"static",
+			"extern",
+			"inline"
+		)),
+		// types
+		highlight(Style::TYPE, c_keywords(
+			"void",
+			"char",
+			"short",
+			"int",
+			"long",
+			"float",
+			"double",
+			"unsigned",
+			"signed"
+		)),
+		// preprocessor
+		highlight(Style::KEYWORD, c_preprocessor),
+		// identifiers
+		c_identifier
+	);
+	return expression.parse(context);
+}

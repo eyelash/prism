@@ -4,7 +4,7 @@
 #include "themes/one_dark.hpp"
 #include "themes/monokai.hpp"
 
-constexpr std::initializer_list<Theme> themes = {
+constexpr Theme themes[] = {
 	one_dark_theme,
 	monokai_theme,
 };
@@ -492,11 +492,11 @@ constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', '
 #include "languages/rust.hpp"
 #include "languages/haskell.hpp"
 
-constexpr std::initializer_list<Language> languages = {
-	c_language,
-	python_language,
-	rust_language,
-	haskell_language,
+constexpr Language languages[] = {
+	{"C", c_file_name, c_language},
+	{"Python", python_file_name, python_language},
+	{"Rust", rust_file_name, rust_language},
+	{"Haskell", haskell_file_name, haskell_language},
 };
 
 const Language* prism::get_language(const char* file_name) {
