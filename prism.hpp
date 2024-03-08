@@ -202,6 +202,7 @@ class Tree {
 		std::size_t max_pos;
 	};
 	std::vector<Checkpoint> checkpoints;
+	std::size_t get_last_checkpoint() const;
 public:
 	void add_checkpoint(std::size_t pos, std::size_t max_pos);
 	std::size_t find_checkpoint(std::size_t pos) const;

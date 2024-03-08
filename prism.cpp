@@ -54,8 +54,14 @@ public:
 	}
 };
 
+std::size_t prism::Tree::get_last_checkpoint() const {
+	if (checkpoints.empty()) {
+		return 0;
+	}
+	return checkpoints.back().pos;
+}
 void prism::Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
-	if (checkpoints.empty() || pos > checkpoints.back().pos) {
+	if (pos >= get_last_checkpoint() + 16) {
 		checkpoints.push_back({pos, max_pos});
 	}
 }
