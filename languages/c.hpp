@@ -124,7 +124,7 @@ constexpr Language c_language = {
 		return ends_with(".c").parse(context);
 	},
 	[](ParseContext& context) {
-		return scope(
+		static constexpr auto expression = scope(
 			// whitespace
 			one_or_more(c_whitespace_char),
 			// comments
@@ -173,6 +173,7 @@ constexpr Language c_language = {
 			highlight(Style::KEYWORD, c_preprocessor),
 			// identifiers
 			c_identifier
-		).parse(context);
+		);
+		return expression.parse(context);
 	}
 };

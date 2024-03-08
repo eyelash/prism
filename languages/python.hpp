@@ -29,7 +29,7 @@ constexpr Language python_language = {
 		return ends_with(".py").parse(context);
 	},
 	[](ParseContext& context) {
-		return scope(
+		static constexpr auto expression = scope(
 			// comments
 			highlight(Style::COMMENT, python_comment),
 			// strings
@@ -72,6 +72,7 @@ constexpr Language python_language = {
 				"is",
 				"in"
 			))
-		).parse(context);
+		);
+		return expression.parse(context);
 	}
 };

@@ -19,7 +19,7 @@ constexpr Language rust_language = {
 		return ends_with(".rs").parse(context);
 	},
 	[](ParseContext& context) {
-		return scope(
+		static constexpr auto expression = scope(
 			// whitespace
 			one_or_more(c_whitespace_char),
 			// comments
@@ -67,6 +67,7 @@ constexpr Language rust_language = {
 			)),
 			// identifiers
 			c_identifier
-		).parse(context);
+		);
+		return expression.parse(context);
 	}
 };
