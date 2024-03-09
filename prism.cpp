@@ -292,6 +292,22 @@ public:
 	}
 };
 
+template <class T> class And {
+	T t;
+public:
+	constexpr And(T t): t(t) {}
+	bool parse(ParseContext& context) const {
+		const auto save_point = context.save();
+		if (t.parse(context)) {
+			context.restore(save_point);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+};
+
 template <class T> class Not {
 	T t;
 public:
@@ -366,6 +382,9 @@ template <class T> constexpr auto repetition(T t) {
 }
 template <class T> constexpr auto optional(T t) {
 	return Optional(get_expression(t));
+}
+template <class T> constexpr auto and_(T t) {
+	return And(get_expression(t));
 }
 template <class T> constexpr auto not_(T t) {
 	return Not(get_expression(t));
