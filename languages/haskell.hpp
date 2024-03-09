@@ -45,8 +45,8 @@ struct haskell_language {
 			"import"
 		)),
 		// types
-		highlight(Style::TYPE, sequence(range('A', 'Z'), repetition(haskell_identifier_char))),
+		highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
 		// identifiers
-		sequence(choice(range('a', 'z'), '_'), repetition(haskell_identifier_char))
+		sequence(choice(range('a', 'z'), '_'), zero_or_more(haskell_identifier_char))
 	);
 };

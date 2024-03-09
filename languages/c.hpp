@@ -35,15 +35,15 @@ constexpr auto c_character = sequence(
 );
 constexpr auto c_digits = sequence(
 	range('0', '9'),
-	repetition(sequence(optional('\''), range('0', '9')))
+	zero_or_more(sequence(optional('\''), range('0', '9')))
 );
 constexpr auto c_hex_digits = sequence(
 	hex_digit,
-	repetition(sequence(optional('\''), hex_digit))
+	zero_or_more(sequence(optional('\''), hex_digit))
 );
 constexpr auto c_binary_digits = sequence(
 	range('0', '1'),
-	repetition(sequence(optional('\''), range('0', '1')))
+	zero_or_more(sequence(optional('\''), range('0', '1')))
 );
 constexpr auto c_number = sequence(
 	choice(

@@ -231,18 +231,14 @@ public:
 	constexpr Tuple(T0 t0, T... t): t0(t0), t(t...) {}
 	bool parse_sequence(ParseContext& context) const {
 		const auto save_point = context.save();
-		if (t0.parse(context)) {
-			if (t.parse_sequence(context)) {
-				return true;
-			}
-			else {
-				context.restore(save_point);
-				return false;
-			}
-		}
-		else {
+		if (!t0.parse(context)) {
 			return false;
 		}
+		if (!t.parse_sequence(context)) {
+			context.restore(save_point);
+			return false;
+		}
+		return true;
 	}
 	bool parse_choice(ParseContext& context) const {
 		if (t0.parse(context)) {
@@ -292,7 +288,7 @@ public:
 		if constexpr (MAX_REPETITIONS == 0) {
 			while (t.parse(context)) {}
 		}
-		else {
+		else if constexpr (MAX_REPETITIONS > MIN_REPETITIONS) {
 			for (std::size_t i = MIN_REPETITIONS; i < MAX_REPETITIONS && t.parse(context); ++i) {}
 		}
 		return true;
@@ -380,6 +376,9 @@ constexpr String get_expression(const char* s) {
 }
 constexpr Function get_expression(bool (*f)(ParseContext&)) {
 	return Function(f);
+}
+constexpr auto get_expression(bool (*f)(char)) {
+	return Char(f);
 }
 template <class T> constexpr T get_expression(T expression) {
 	return expression;
@@ -479,15 +478,17 @@ template <class S, class E, class... T> class NestedScope {
 	Tuple<T...> t;
 	E end;
 	bool parse_single(ParseContext& context) const {
-		if (!not_(end).parse(context)) {
+		if (end.parse(context)) {
 			return false;
 		}
 		if (t.parse_choice(context)) {
 			return true;
 		}
-		else {
-			return any_char().parse(context);
+		if (context.get() == '\0') {
+			return false;
 		}
+		context.advance();
+		return true;
 	}
 public:
 	constexpr NestedScope(S start, E end, T... t): start(start), t(t...), end(end) {}
@@ -496,7 +497,6 @@ public:
 			return false;
 		}
 		while (parse_single(context)) {}
-		end.parse(context);
 		return true;
 	}
 };
@@ -507,9 +507,11 @@ template <class T> class RootScope {
 		if (t.parse(context)) {
 			return true;
 		}
-		else {
-			return any_char().parse(context);
+		if (context.get() == '\0') {
+			return false;
 		}
+		context.advance();
+		return true;
 	}
 public:
 	constexpr RootScope(T t): t(t) {}
