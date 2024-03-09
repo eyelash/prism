@@ -168,6 +168,26 @@ static bool c_language(ParseContext& context) {
 			"unsigned",
 			"signed"
 		)),
+		// operators
+		highlight(Style::OPERATOR, c_keyword(
+			"sizeof"
+		)),
+		choice(
+			"+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=",
+			"++", "--",
+			"&&", "||",
+			"<<", ">>",
+			"==", "!=", "<=", ">=",
+			"->",
+			'+', '-', '*', '/', '%',
+			'&', '|', '^', '~',
+			'<', '>',
+			'=',
+			'!',
+			'?',
+			':',
+			'.'
+		),
 		// preprocessor
 		highlight(Style::KEYWORD, c_preprocessor),
 		// identifiers
