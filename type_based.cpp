@@ -216,8 +216,16 @@ template <char... chars> struct String {
 		return s;
 	}
 	static bool parse(ParseContext& context) {
+		static constexpr char string[] = {chars..., '\0'};
+		if (*string == '\0') {
+			return true;
+		}
+		if (context.get() != *string) {
+			return false;
+		}
 		const auto save_point = context.save();
-		for (const char* s = c_str(); *s != '\0'; ++s) {
+		context.advance();
+		for (const char* s = string + 1; *s != '\0'; ++s) {
 			if (context.get() != *s) {
 				context.restore(save_point);
 				return false;
