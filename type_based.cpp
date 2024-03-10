@@ -346,77 +346,7 @@ public:
 
 using hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
 
-using c_whitespace_char = choice(C(' '), C('\t'), C('\n'), C('\r'), C('\v'), C('\f'));
-using c_identifier_begin_char = choice(range('a', 'z'), range('A', 'Z'), C('_'));
-using c_identifier_char = choice(range('a', 'z'), range('A', 'Z'), C('_'), range('0', '9'));
-using c_identifier = seq(c_identifier_begin_char, zero_or_more(c_identifier_char));
-template <class T> using CKeyword = seq(T, not_(c_identifier_char));
-#define c_keyword(...) CKeyword<__VA_ARGS__>
-template <class... T> using CKeywords = choice(c_keyword(T)...);
-#define c_keywords(...) CKeywords<__VA_ARGS__>
-
-DEFINE_PARSER(c_comment, choice(
-	seq(S("/*"), repeat(but(S("*/"))), optional(S("*/"))),
-	seq(S("//"), repeat(but(C('\n'))))
-))
-
-DEFINE_PARSER(c_file_name, ends_with(S(".c")))
-
-DEFINE_PARSER(c_language,
-	choice(
-		// whitespace
-		c_whitespace_char,
-		// comments
-		highlight(Style::COMMENT, c_comment),
-		// keywords
-		highlight(Style::KEYWORD, c_keywords(
-			S("if"),
-			S("else"),
-			S("for"),
-			S("while"),
-			S("do"),
-			S("switch"),
-			S("case"),
-			S("default"),
-			S("goto"),
-			S("break"),
-			S("continue"),
-			S("return"),
-			S("struct"),
-			S("enum"),
-			S("union"),
-			S("typedef"),
-			S("const"),
-			S("static"),
-			S("extern"),
-			S("inline")
-		)),
-		// identifiers
-		c_identifier
-	)
-)
-
-DEFINE_PARSER(rust_block_comment, seq(
-	S("/*"),
-	repeat(choice(
-		rust_block_comment,
-		but(S("*/"))
-	)),
-	optional(S("*/"))
-))
-using rust_comment = choice(
-	rust_block_comment,
-	seq(S("//"), repeat(but(C('\n'))))
-);
-
-DEFINE_PARSER(rust_file_name, ends_with(S(".rs")))
-
-DEFINE_PARSER(rust_language,
-	choice(
-		// comments
-		highlight(Style::COMMENT, rust_comment)
-	)
-)
+#include "type_based_languages/c.hpp"
 
 #undef highlight
 
@@ -432,7 +362,6 @@ template <class file_name_parser, class language_parser> constexpr Language lang
 
 constexpr Language languages[] = {
 	language<c_file_name, c_language>("C"),
-	language<rust_file_name, rust_language>("Rust"),
 };
 
 const Language* prism::get_language(const char* file_name) {
