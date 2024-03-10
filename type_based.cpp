@@ -327,48 +327,49 @@ public:
 
 #define C(c) Char<c>
 #define S(s) decltype(s##_s)
-#define RANGE(first, last) CharRange<first, last>
-#define ANY_CHAR AnyChar
-#define SEQ(...) Seq<__VA_ARGS__>
-#define CHOICE(...) Choice<__VA_ARGS__>
-#define REPEAT(...) Repeat<__VA_ARGS__>
-#define OPTIONAL(...) Optional<__VA_ARGS__>
-#define NOT(...) Not<__VA_ARGS__>
-#define HIGHLIGHT(style, ...) Highlight<style, __VA_ARGS__>
-#define ZERO_OR_MORE(...) REPEAT(__VA_ARGS__)
-#define ONE_OR_MORE(...) SEQ(__VA_ARGS__, REPEAT(__VA_ARGS__))
-#define BUT(...) SEQ(NOT(__VA_ARGS__), ANY_CHAR)
-#define END NOT(ANY_CHAR)
-#define ENDS_WITH(...) SEQ(REPEAT(BUT(SEQ(__VA_ARGS__, END))), SEQ(__VA_ARGS__, END))
+#define range(first, last) CharRange<first, last>
+#define any_char AnyChar
+#define seq(...) Seq<__VA_ARGS__>
+#define choice(...) Choice<__VA_ARGS__>
+#define repeat(...) Repeat<__VA_ARGS__>
+#define optional(...) Optional<__VA_ARGS__>
+#define not_(...) Not<__VA_ARGS__>
+#define highlight(style, ...) Highlight<style, __VA_ARGS__>
+#define zero_or_more(...) repeat(__VA_ARGS__)
+#define one_or_more(...) seq(__VA_ARGS__, repeat(__VA_ARGS__))
+#define but(...) seq(not_(__VA_ARGS__), any_char)
+#define end not_(any_char)
+#define ends_with(...) seq(repeat(but(seq(__VA_ARGS__, end))), seq(__VA_ARGS__, end))
 
-#define DECLARE_PARSER(context) struct context;
-#define DEFINE_PARSER(context, ...) struct context { using type = __VA_ARGS__; };
+#define DECLARE_PARSER(parser) struct parser;
+#define DEFINE_PARSER(parser, ...) struct parser { using type = __VA_ARGS__; };
 
-using hex_digit = CHOICE(RANGE('0', '9'), RANGE('a', 'f'), RANGE('A', 'F'));
+using hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
 
-using c_whitespace_char = CHOICE(C(' '), C('\t'), C('\n'), C('\r'), C('\v'), C('\f'));
-using c_identifier_begin_char = CHOICE(RANGE('a', 'z'), RANGE('A', 'Z'), C('_'));
-using c_identifier_char = CHOICE(RANGE('a', 'z'), RANGE('A', 'Z'), C('_'), RANGE('0', '9'));
-using c_identifier = SEQ(c_identifier_begin_char, ZERO_OR_MORE(c_identifier_char));
-template <class T> using c_keyword = SEQ(T, NOT(c_identifier_char));
-template <class... T> using c_keywords = Choice<c_keyword<T>...>;
-#define C_KEYWORDS(...) c_keywords<__VA_ARGS__>
+using c_whitespace_char = choice(C(' '), C('\t'), C('\n'), C('\r'), C('\v'), C('\f'));
+using c_identifier_begin_char = choice(range('a', 'z'), range('A', 'Z'), C('_'));
+using c_identifier_char = choice(range('a', 'z'), range('A', 'Z'), C('_'), range('0', '9'));
+using c_identifier = seq(c_identifier_begin_char, zero_or_more(c_identifier_char));
+template <class T> using CKeyword = seq(T, not_(c_identifier_char));
+#define c_keyword(...) CKeyword<__VA_ARGS__>
+template <class... T> using CKeywords = choice(c_keyword(T)...);
+#define c_keywords(...) CKeywords<__VA_ARGS__>
 
-DEFINE_PARSER(c_comment, CHOICE(
-	SEQ(S("/*"), REPEAT(BUT(S("*/"))), OPTIONAL(S("*/"))),
-	SEQ(S("//"), REPEAT(BUT(C('\n'))))
+DEFINE_PARSER(c_comment, choice(
+	seq(S("/*"), repeat(but(S("*/"))), optional(S("*/"))),
+	seq(S("//"), repeat(but(C('\n'))))
 ))
 
-DEFINE_PARSER(c_file_name, ENDS_WITH(S(".c")))
+DEFINE_PARSER(c_file_name, ends_with(S(".c")))
 
 DEFINE_PARSER(c_language,
-	CHOICE(
+	choice(
 		// whitespace
 		c_whitespace_char,
 		// comments
-		HIGHLIGHT(Style::COMMENT, c_comment),
+		highlight(Style::COMMENT, c_comment),
 		// keywords
-		HIGHLIGHT(Style::KEYWORD, C_KEYWORDS(
+		highlight(Style::KEYWORD, c_keywords(
 			S("if"),
 			S("else"),
 			S("for"),
@@ -395,27 +396,29 @@ DEFINE_PARSER(c_language,
 	)
 )
 
-DEFINE_PARSER(rust_block_comment, SEQ(
+DEFINE_PARSER(rust_block_comment, seq(
 	S("/*"),
-	REPEAT(CHOICE(
+	repeat(choice(
 		rust_block_comment,
-		BUT(S("*/"))
+		but(S("*/"))
 	)),
-	OPTIONAL(S("*/"))
+	optional(S("*/"))
 ))
-using rust_comment = CHOICE(
+using rust_comment = choice(
 	rust_block_comment,
-	SEQ(S("//"), REPEAT(BUT(C('\n'))))
+	seq(S("//"), repeat(but(C('\n'))))
 );
 
-DEFINE_PARSER(rust_file_name, ENDS_WITH(S(".rs")))
+DEFINE_PARSER(rust_file_name, ends_with(S(".rs")))
 
 DEFINE_PARSER(rust_language,
-	CHOICE(
+	choice(
 		// comments
-		HIGHLIGHT(Style::COMMENT, rust_comment)
+		highlight(Style::COMMENT, rust_comment)
 	)
 )
+
+#undef highlight
 
 struct Language {
 	const char* name;
@@ -423,11 +426,13 @@ struct Language {
 	bool (*parse)(ParseContext&);
 };
 
-#define LANGUAGE(name, file_name, language) Language{name, unwrap<file_name>::parse, unwrap<language>::parse}
+template <class file_name_parser, class language_parser> constexpr Language language(const char* name) {
+	return Language{name, unwrap<file_name_parser>::parse, unwrap<language_parser>::parse};
+}
 
 constexpr Language languages[] = {
-	LANGUAGE("C", c_file_name, c_language),
-	LANGUAGE("Rust", rust_file_name, rust_language),
+	language<c_file_name, c_language>("C"),
+	language<rust_file_name, rust_language>("Rust"),
 };
 
 const Language* prism::get_language(const char* file_name) {
