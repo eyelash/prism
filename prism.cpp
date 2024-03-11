@@ -272,12 +272,29 @@ public:
 	}
 };
 
-template <class T> class Repetition {
+template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> class Repetition {
 	T t;
 public:
 	constexpr Repetition(T t): t(t) {}
 	bool parse(ParseContext& context) const {
-		while (t.parse(context)) {}
+		if constexpr (MIN_REPETITIONS > 0) {
+			const auto save_point = context.save();
+			if (!t.parse(context)) {
+				return false;
+			}
+			for (std::size_t i = 1; i < MIN_REPETITIONS; ++i) {
+				if (!t.parse(context)) {
+					context.restore(save_point);
+					return false;
+				}
+			}
+		}
+		if constexpr (MAX_REPETITIONS == 0) {
+			while (t.parse(context)) {}
+		}
+		else {
+			for (std::size_t i = MIN_REPETITIONS; i < MAX_REPETITIONS && t.parse(context); ++i) {}
+		}
 		return true;
 	}
 };
@@ -377,8 +394,11 @@ template <class... T> constexpr auto sequence(T... t) {
 template <class... T> constexpr auto choice(T... t) {
 	return Choice(get_expression(t)...);
 }
-template <class T> constexpr auto repetition(T t) {
-	return Repetition(get_expression(t));
+template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> constexpr Repetition<MIN_REPETITIONS, MAX_REPETITIONS, T> repetition_(T t) {
+	return Repetition<MIN_REPETITIONS, MAX_REPETITIONS, T>(t);
+}
+template <std::size_t MIN_REPETITIONS = 0, std::size_t MAX_REPETITIONS = 0, class T> constexpr auto repetition(T t) {
+	return repetition_<MIN_REPETITIONS, MAX_REPETITIONS>(get_expression(t));
 }
 template <class T> constexpr auto optional(T t) {
 	return Optional(get_expression(t));
@@ -396,7 +416,7 @@ template <class T> constexpr auto zero_or_more(T t) {
 	return repetition(t);
 }
 template <class T> constexpr auto one_or_more(T t) {
-	return sequence(t, repetition(t));
+	return repetition<1>(t);
 }
 template <class T> constexpr auto but(T t) {
 	return sequence(not_(t), any_char());

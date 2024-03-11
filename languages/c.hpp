@@ -16,10 +16,10 @@ constexpr auto c_comment = choice(
 constexpr auto c_escape = sequence('\\', choice(
 	'a', 'b', 't', 'n', 'v', 'f', 'r',
 	'"', '\'', '?', '\\',
-	one_or_more(range('0', '7')),
+	repetition<1, 3>(range('0', '7')),
 	sequence('x', one_or_more(hex_digit)),
-	sequence('u', one_or_more(hex_digit)),
-	sequence('U', one_or_more(hex_digit))
+	sequence('u', repetition<4, 4>(hex_digit)),
+	sequence('U', repetition<8, 8>(hex_digit))
 ));
 constexpr auto c_string = sequence(
 	optional(choice('L', "u8", 'u', 'U')),

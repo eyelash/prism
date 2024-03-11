@@ -11,8 +11,8 @@ template <class... T> constexpr auto java_keywords(T... arguments) {
 constexpr auto java_escape = sequence('\\', choice(
 	'b', 't', 'n', 'f', 'r', 's',
 	'"', '\'', '\\',
-	one_or_more(range('0', '7')),
-	sequence(one_or_more('u'), one_or_more(hex_digit))
+	repetition<1, 3>(range('0', '7')),
+	sequence(one_or_more('u'), repetition<4, 4>(hex_digit))
 ));
 constexpr auto java_string = choice(
 	sequence(
