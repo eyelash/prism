@@ -1,23 +1,23 @@
-constexpr auto rust_block_comment = recursive([](auto rust_block_comment) {
-	return sequence(
+struct rust_block_comment {
+	static constexpr auto expression = sequence(
 		"/*",
 		repetition(choice(
-			rust_block_comment,
+			reference<rust_block_comment>(),
 			but("*/")
 		)),
 		optional("*/")
 	);
-});
+};
 constexpr auto rust_comment = choice(
-	rust_block_comment,
+	reference<rust_block_comment>(),
 	sequence("//", repetition(but('\n')))
 );
 
-static bool rust_file_name(ParseContext& context) {
-	return ends_with(".rs").parse(context);
-}
+struct rust_file_name {
+	static constexpr auto expression = ends_with(".rs");
+};
 
-static bool rust_language(ParseContext& context) {
+struct rust_language {
 	static constexpr auto expression = scope(
 		// whitespace
 		c_whitespace_char,
@@ -67,5 +67,4 @@ static bool rust_language(ParseContext& context) {
 		// identifiers
 		c_identifier
 	);
-	return expression.parse(context);
-}
+};

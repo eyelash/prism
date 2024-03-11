@@ -1,13 +1,12 @@
 // https://toml.io/en/v1.0.0
 
-static bool toml_file_name(ParseContext& context) {
-	return ends_with(".toml").parse(context);
-}
+struct toml_file_name {
+	static constexpr auto expression = ends_with(".toml");
+};
 
-static bool toml_language(ParseContext& context) {
+struct toml_language {
 	static constexpr auto expression = scope(
 		// comments
 		highlight(Style::COMMENT, sequence('#', repetition(but('\n'))))
 	);
-	return expression.parse(context);
-}
+};

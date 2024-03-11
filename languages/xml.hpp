@@ -23,10 +23,10 @@ constexpr auto xml_syntax = choice(
 	highlight(Style::KEYWORD, sequence("</", xml_name, xml_white_space, '>'))
 );
 
-static bool xml_file_name(ParseContext& context) {
-	return ends_with(choice(".xml", ".svg")).parse(context);
-}
+struct xml_file_name {
+	static constexpr auto expression = ends_with(choice(".xml", ".svg"));
+};
 
-static bool xml_language(ParseContext& context) {
-	return xml_syntax.parse(context);
-}
+struct xml_language {
+	static constexpr auto expression = xml_syntax;
+};

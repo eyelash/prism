@@ -365,7 +365,7 @@ struct Language {
 };
 
 template <class file_name_parser, class language_parser> constexpr Language language(const char* name) {
-	return Language{name, unwrap<file_name_parser>::parse, unwrap<language_parser>::parse};
+	return {name, unwrap<file_name_parser>::parse, unwrap<language_parser>::parse};
 }
 
 constexpr Language languages[] = {

@@ -25,11 +25,11 @@ constexpr auto python_string = choice(
 	)
 );
 
-static bool python_file_name(ParseContext& context) {
-	return ends_with(".py").parse(context);
-}
+struct python_file_name {
+	static constexpr auto expression = ends_with(".py");
+};
 
-static bool python_language(ParseContext& context) {
+struct python_language {
 	static constexpr auto expression = scope(
 		// whitespace
 		c_whitespace_char,
@@ -76,5 +76,4 @@ static bool python_language(ParseContext& context) {
 			"in"
 		))
 	);
-	return expression.parse(context);
-}
+};

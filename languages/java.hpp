@@ -154,10 +154,10 @@ constexpr auto java_syntax = choice(
 	java_identifier
 );
 
-static bool java_file_name(ParseContext& context) {
-	return ends_with(".java").parse(context);
-}
+struct java_file_name {
+	static constexpr auto expression = ends_with(".java");
+};
 
-static bool java_language(ParseContext& context) {
-	return java_syntax.parse(context);
-}
+struct java_language {
+	static constexpr auto expression = java_syntax;
+};

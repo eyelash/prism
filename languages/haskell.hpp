@@ -1,25 +1,25 @@
 constexpr auto haskell_identifier_char = choice(range('a', 'z'), '_', range('A', 'Z'), range('0', '9'), '\'');
 
-constexpr auto haskell_block_comment = recursive([](auto haskell_block_comment) {
-	return sequence(
+struct haskell_block_comment {
+	static constexpr auto expression = sequence(
 		"{-",
 		repetition(choice(
-			haskell_block_comment,
+			reference<haskell_block_comment>(),
 			but("-}")
 		)),
 		optional("-}")
 	);
-});
+};
 constexpr auto haskell_comment = choice(
-	haskell_block_comment,
+	reference<haskell_block_comment>(),
 	sequence("--", repetition(but('\n')))
 );
 
-static bool haskell_file_name(ParseContext& context) {
-	return ends_with(".hs").parse(context);
-}
+struct haskell_file_name {
+	static constexpr auto expression = ends_with(".hs");
+};
 
-static bool haskell_language(ParseContext& context) {
+struct haskell_language {
 	static constexpr auto expression = scope(
 		// whitespace
 		c_whitespace_char,
@@ -49,5 +49,4 @@ static bool haskell_language(ParseContext& context) {
 		// identifiers
 		sequence(choice(range('a', 'z'), '_'), repetition(haskell_identifier_char))
 	);
-	return expression.parse(context);
-}
+};

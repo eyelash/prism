@@ -118,11 +118,11 @@ constexpr auto c_preprocessor = sequence(
 	)
 );
 
-static bool c_file_name(ParseContext& context) {
-	return ends_with(".c").parse(context);
-}
+struct c_file_name {
+	static constexpr auto expression = ends_with(".c");
+};
 
-static bool c_language(ParseContext& context) {
+struct c_language {
 	static constexpr auto expression = scope(
 		// whitespace
 		c_whitespace_char,
@@ -193,5 +193,4 @@ static bool c_language(ParseContext& context) {
 		// identifiers
 		c_identifier
 	);
-	return expression.parse(context);
-}
+};

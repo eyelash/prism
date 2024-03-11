@@ -363,6 +363,13 @@ public:
 	}
 };
 
+template <class T> class Reference {
+public:
+	bool parse(ParseContext& context) const {
+		return T::expression.parse(context);
+	}
+};
+
 constexpr auto get_expression(char c) {
 	return Char([c](char i) {
 		return i == c;
@@ -430,6 +437,9 @@ template <class T> constexpr auto ends_with(T t) {
 }
 template <class F> constexpr auto recursive(F f) {
 	return Recursive(f);
+}
+template <class T> constexpr auto reference() {
+	return Reference<T>();
 }
 
 class ScopeWrapper {
@@ -528,6 +538,18 @@ struct Language {
 	bool (*parse)(ParseContext&);
 };
 
+template <class parse_file_name, class parse> constexpr Language language(const char* name) {
+	return {
+		name,
+		[](ParseContext& context) {
+			return parse_file_name::expression.parse(context);
+		},
+		[](ParseContext& context) {
+			return parse::expression.parse(context);
+		}
+	};
+}
+
 constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', 'F'));
 
 #include "languages/c.hpp"
@@ -539,13 +561,13 @@ constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', '
 #include "languages/haskell.hpp"
 
 constexpr Language languages[] = {
-	{"C", c_file_name, c_language},
-	{"Java", java_file_name, java_language},
-	{"XML", xml_file_name, xml_language},
-	{"Python", python_file_name, python_language},
-	{"Rust", rust_file_name, rust_language},
-	{"TOML", toml_file_name, toml_language},
-	{"Haskell", haskell_file_name, haskell_language},
+	language<c_file_name, c_language>("C"),
+	language<java_file_name, java_language>("Java"),
+	language<xml_file_name, xml_language>("XML"),
+	language<python_file_name, python_language>("Python"),
+	language<rust_file_name, rust_language>("Rust"),
+	language<toml_file_name, toml_language>("TOML"),
+	language<haskell_file_name, haskell_language>("Haskell"),
 };
 
 const Language* prism::get_language(const char* file_name) {
