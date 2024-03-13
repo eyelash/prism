@@ -197,15 +197,26 @@ public:
 namespace prism {
 
 class Tree {
+public:
 	struct Checkpoint {
 		std::size_t pos;
 		std::size_t max_pos;
 	};
-	std::vector<Checkpoint> checkpoints;
-	std::size_t get_last_checkpoint() const;
+	struct Node {
+		std::size_t start_pos;
+		std::size_t start_max_pos;
+		std::vector<Checkpoint> checkpoints;
+		std::vector<Node> children;
+		std::size_t get_last_checkpoint() const;
+		void add_checkpoint(std::size_t pos, std::size_t max_pos);
+		Checkpoint find_checkpoint(std::size_t pos) const;
+		Node* get_child(std::size_t pos, std::size_t max_pos);
+		void edit(std::size_t pos);
+	};
+private:
+	Node root_node = {0, 0};
 public:
-	void add_checkpoint(std::size_t pos, std::size_t max_pos);
-	std::size_t find_checkpoint(std::size_t pos) const;
+	Node* get_root_node();
 	void edit(std::size_t pos);
 };
 

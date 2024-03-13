@@ -54,30 +54,59 @@ public:
 	}
 };
 
-std::size_t prism::Tree::get_last_checkpoint() const {
+std::size_t prism::Tree::Node::get_last_checkpoint() const {
 	if (checkpoints.empty()) {
-		return 0;
+		return start_pos;
 	}
 	return checkpoints.back().pos;
 }
-void prism::Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
+void prism::Tree::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	if (pos >= get_last_checkpoint() + 16) {
 		checkpoints.push_back({pos, max_pos});
 	}
 }
-std::size_t prism::Tree::find_checkpoint(std::size_t pos) const {
+prism::Tree::Checkpoint prism::Tree::Node::find_checkpoint(std::size_t pos) const {
 	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
 	};
 	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
-	return iter != checkpoints.rend() ? iter->pos : 0;
+	return iter != checkpoints.rend() ? *iter : Checkpoint{start_pos, start_max_pos};
+}
+prism::Tree::Node* prism::Tree::Node::get_child(std::size_t pos, std::size_t max_pos) {
+	constexpr auto comp = [](const Node& child, std::size_t pos) {
+		return child.start_pos < pos;
+	};
+	auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+	if (iter != children.end()) {
+		return &*iter;
+	}
+	children.push_back({pos, max_pos});
+	return &children.back();
+}
+void prism::Tree::Node::edit(std::size_t pos) {
+	{
+		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+			return checkpoint.max_pos < pos;
+		};
+		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+		checkpoints.erase(iter, checkpoints.end());
+	}
+	{
+		constexpr auto comp = [](const Node& child, std::size_t pos) {
+			return child.start_max_pos < pos;
+		};
+		auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+		children.erase(iter, children.end());
+	}
+	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
+		children.back().edit(pos);
+	}
+}
+prism::Tree::Node* prism::Tree::get_root_node() {
+	return &root_node;
 }
 void prism::Tree::edit(std::size_t pos) {
-	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
-		return checkpoint.max_pos < pos;
-	};
-	auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
-	checkpoints.erase(iter, checkpoints.end());
+	root_node.edit(pos);
 }
 
 class Spans {
@@ -129,12 +158,12 @@ public:
 
 class ParseContext {
 	InputAdapter input;
-	prism::Tree& tree;
+	prism::Tree::Node* node;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), node(tree.get_root_node()), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -145,10 +174,18 @@ public:
 		return spans.change_style(input.get_position(), new_style, window);
 	}
 	void add_checkpoint() {
-		tree.add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
+		node->add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
 	}
 	void skip_to_checkpoint() {
-		input.set_position(tree.find_checkpoint(window.start));
+		const auto checkpoint = node->find_checkpoint(window.start);
+		input.set_position(checkpoint.pos);
+		max_pos = checkpoint.max_pos;
+	}
+	prism::Tree::Node* enter_scope() {
+		return std::exchange(node, node->get_child(input.get_position(), std::max(max_pos, input.get_position())));
+	}
+	void leave_scope(prism::Tree::Node* old_node) {
+		node = old_node;
 	}
 	bool is_before_window_end() const {
 		return input.get_position() < window.end;

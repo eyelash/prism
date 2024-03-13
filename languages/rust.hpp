@@ -1,16 +1,9 @@
 struct rust_block_comment {
-	static constexpr auto expression = sequence(
-		"/*",
-		repetition(choice(
-			reference<rust_block_comment>(),
-			but("*/")
-		)),
-		optional("*/")
-	);
+	static constexpr auto expression = nested_scope(Style::COMMENT, "/*", "*/", reference<rust_block_comment>());
 };
-constexpr auto rust_comment = choice(
+constexpr auto rust_comment = scope(
 	reference<rust_block_comment>(),
-	sequence("//", repetition(but('\n')))
+	highlight(Style::COMMENT, sequence("//", repetition(but('\n'))))
 );
 
 struct rust_file_name {
@@ -22,7 +15,7 @@ struct rust_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		highlight(Style::COMMENT, rust_comment),
+		rust_comment,
 		// literals
 		highlight(Style::LITERAL, c_keywords(
 			"false",

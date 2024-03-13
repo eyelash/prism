@@ -54,30 +54,59 @@ public:
 	}
 };
 
-std::size_t prism::Tree::get_last_checkpoint() const {
+std::size_t prism::Tree::Node::get_last_checkpoint() const {
 	if (checkpoints.empty()) {
-		return 0;
+		return start_pos;
 	}
 	return checkpoints.back().pos;
 }
-void prism::Tree::add_checkpoint(std::size_t pos, std::size_t max_pos) {
+void prism::Tree::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	if (pos >= get_last_checkpoint() + 16) {
 		checkpoints.push_back({pos, max_pos});
 	}
 }
-std::size_t prism::Tree::find_checkpoint(std::size_t pos) const {
+prism::Tree::Checkpoint prism::Tree::Node::find_checkpoint(std::size_t pos) const {
 	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
 	};
 	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
-	return iter != checkpoints.rend() ? iter->pos : 0;
+	return iter != checkpoints.rend() ? *iter : Checkpoint{start_pos, start_max_pos};
+}
+prism::Tree::Node* prism::Tree::Node::get_child(std::size_t pos, std::size_t max_pos) {
+	constexpr auto comp = [](const Node& child, std::size_t pos) {
+		return child.start_pos < pos;
+	};
+	auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+	if (iter != children.end()) {
+		return &*iter;
+	}
+	children.push_back({pos, max_pos});
+	return &children.back();
+}
+void prism::Tree::Node::edit(std::size_t pos) {
+	{
+		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+			return checkpoint.max_pos < pos;
+		};
+		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+		checkpoints.erase(iter, checkpoints.end());
+	}
+	{
+		constexpr auto comp = [](const Node& child, std::size_t pos) {
+			return child.start_max_pos < pos;
+		};
+		auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+		children.erase(iter, children.end());
+	}
+	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
+		children.back().edit(pos);
+	}
+}
+prism::Tree::Node* prism::Tree::get_root_node() {
+	return &root_node;
 }
 void prism::Tree::edit(std::size_t pos) {
-	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
-		return checkpoint.max_pos < pos;
-	};
-	auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
-	checkpoints.erase(iter, checkpoints.end());
+	root_node.edit(pos);
 }
 
 class Spans {
@@ -129,12 +158,12 @@ public:
 
 class ParseContext {
 	InputAdapter input;
-	prism::Tree& tree;
+	prism::Tree::Node* node;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), tree(tree), window(window_start, window_end), max_pos(0), spans(spans) {}
+	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), node(tree.get_root_node()), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -145,10 +174,18 @@ public:
 		return spans.change_style(input.get_position(), new_style, window);
 	}
 	void add_checkpoint() {
-		tree.add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
+		node->add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
 	}
 	void skip_to_checkpoint() {
-		input.set_position(tree.find_checkpoint(window.start));
+		const auto checkpoint = node->find_checkpoint(window.start);
+		input.set_position(checkpoint.pos);
+		max_pos = checkpoint.max_pos;
+	}
+	prism::Tree::Node* enter_scope() {
+		return std::exchange(node, node->get_child(input.get_position(), std::max(max_pos, input.get_position())));
+	}
+	void leave_scope(prism::Tree::Node* old_node) {
+		node = old_node;
 	}
 	bool is_before_window_end() const {
 		return input.get_position() < window.end;
@@ -225,46 +262,58 @@ public:
 	}
 };
 template <class T0, class... T> class Tuple<T0, T...> {
+public:
 	T0 t0;
 	Tuple<T...> t;
-public:
 	constexpr Tuple(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse_sequence(ParseContext& context) const {
+};
+
+class SequenceImpl {
+public:
+	static bool parse(const Tuple<>&, ParseContext& context) {
+		return true;
+	}
+	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
 		const auto save_point = context.save();
-		if (!t0.parse(context)) {
+		if (!t.t0.parse(context)) {
 			return false;
 		}
-		if (!t.parse_sequence(context)) {
+		if (!parse(t.t, context)) {
 			context.restore(save_point);
 			return false;
 		}
 		return true;
 	}
-	bool parse_choice(ParseContext& context) const {
-		if (t0.parse(context)) {
-			return true;
-		}
-		else {
-			return t.parse_choice(context);
-		}
-	}
 };
-
 template <class... T> class Sequence {
 	Tuple<T...> t;
 public:
 	constexpr Sequence(T... t): t(t...) {}
 	bool parse(ParseContext& context) const {
-		return t.parse_sequence(context);
+		return SequenceImpl::parse(t, context);
 	}
 };
 
+class ChoiceImpl {
+public:
+	static bool parse(const Tuple<>&, ParseContext& context) {
+		return false;
+	}
+	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
+		if (t.t0.parse(context)) {
+			return true;
+		}
+		else {
+			return parse(t.t, context);
+		}
+	}
+};
 template <class... T> class Choice {
 	Tuple<T...> t;
 public:
 	constexpr Choice(T... t): t(t...) {}
 	bool parse(ParseContext& context) const {
-		return t.parse_choice(context);
+		return ChoiceImpl::parse(t, context);
 	}
 };
 
@@ -464,12 +513,27 @@ public:
 	}
 };
 
+class ScopeImpl {
+public:
+	static bool parse(const Tuple<>&, ParseContext& context) {
+		return false;
+	}
+	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
+		if (t.t0.parse(context)) {
+			return true;
+		}
+		else {
+			return parse(t.t, context);
+		}
+	}
+};
+
 template <class... T> class Scope {
 	Tuple<T...> tuple;
 public:
 	constexpr Scope(T... t): tuple(t...) {}
 	bool parse(ParseContext& context) const {
-		return tuple.parse_choice(context);
+		return ScopeImpl::parse(tuple, context);
 	}
 };
 
@@ -477,11 +541,12 @@ template <class S, class E, class... T> class NestedScope {
 	S start;
 	Tuple<T...> t;
 	E end;
+	int style;
 	bool parse_single(ParseContext& context) const {
 		if (end.parse(context)) {
 			return false;
 		}
-		if (t.parse_choice(context)) {
+		if (ScopeImpl::parse(t, context)) {
 			return true;
 		}
 		if (context.get() == '\0') {
@@ -491,12 +556,15 @@ template <class S, class E, class... T> class NestedScope {
 		return true;
 	}
 public:
-	constexpr NestedScope(S start, E end, T... t): start(start), t(t...), end(end) {}
+	constexpr NestedScope(int style, S start, E end, T... t): start(start), t(t...), end(end), style(style) {}
 	bool parse(ParseContext& context) const {
+		const int old_style = context.change_style(style);
 		if (!start.parse(context)) {
+			context.change_style(old_style);
 			return false;
 		}
 		while (parse_single(context)) {}
+		context.change_style(old_style);
 		return true;
 	}
 };
@@ -527,8 +595,8 @@ public:
 template <class... T> constexpr auto scope(T... t) {
 	return Scope(get_expression(t)...);
 }
-template <class S, class E, class... T> constexpr auto nested_scope(S start, E end, T... t) {
-	return NestedScope(get_expression(start), get_expression(end), get_expression(t)...);
+template <class S, class E, class... T> constexpr auto nested_scope(int style, S start, E end, T... t) {
+	return NestedScope(style, get_expression(start), get_expression(end), get_expression(t)...);
 }
 template <class T> constexpr auto root_scope(T t) {
 	return RootScope(get_expression(t));
