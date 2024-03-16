@@ -413,6 +413,9 @@ public:
 	bool parse(ParseContext& context) const {
 		return T::expression.parse(context);
 	}
+	bool parse_scope(ParseContext& context) const {
+		return T::expression.parse_scope(context);
+	}
 };
 
 constexpr auto get_expression(char c) {
@@ -494,24 +497,33 @@ class ScopeWrapper {
 	class Interface {
 	public:
 		virtual ~Interface() = default;
-		virtual bool parse(ParseContext&) const = 0;
+		virtual bool parse_scope(ParseContext&) const = 0;
 	};
 	template <class T> class Implementation final: public Interface {
 		T t;
 	public:
 		constexpr Implementation(T t): t(t) {}
-		bool parse(ParseContext& context) const override {
-			return t.parse(context);
+		bool parse_scope(ParseContext& context) const override {
+			return t.parse_scope(context);
 		}
 	};
 	std::unique_ptr<Interface> scope;
 public:
 	ScopeWrapper() {}
 	template <class T> ScopeWrapper(T t): scope(std::make_unique<Implementation<T>>(t)) {}
-	bool parse(ParseContext& context) const {
-		return scope->parse(context);
+	bool parse_scope(ParseContext& context) const {
+		return scope->parse_scope(context);
 	}
 };
+
+template <class... T> class Scope;
+template <class S, class E, class... T> class NestedScope;
+
+template <class> struct is_scope: std::false_type {};
+template <class... T> struct is_scope<Scope<T...>>: std::true_type {};
+template <class S, class E, class... T> struct is_scope<NestedScope<S, E, T...>>: std::true_type {};
+template <class T> struct is_scope<const T>: std::bool_constant<is_scope<T>::value> {};
+template <class T> struct is_scope<Reference<T>>: std::bool_constant<is_scope<decltype(T::expression)>::value> {};
 
 class ScopeImpl {
 public:
@@ -519,11 +531,21 @@ public:
 		return false;
 	}
 	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
-		if (t.t0.parse(context)) {
-			return true;
+		if constexpr (is_scope<T0>::value) {
+			if (t.t0.parse_scope(context)) {
+				return true;
+			}
+			else {
+				return parse(t.t, context);
+			}
 		}
 		else {
-			return parse(t.t, context);
+			if (t.t0.parse(context)) {
+				return true;
+			}
+			else {
+				return parse(t.t, context);
+			}
 		}
 	}
 };
@@ -532,7 +554,7 @@ template <class... T> class Scope {
 	Tuple<T...> tuple;
 public:
 	constexpr Scope(T... t): tuple(t...) {}
-	bool parse(ParseContext& context) const {
+	bool parse_scope(ParseContext& context) const {
 		return ScopeImpl::parse(tuple, context);
 	}
 };
@@ -557,13 +579,21 @@ template <class S, class E, class... T> class NestedScope {
 	}
 public:
 	constexpr NestedScope(int style, S start, E end, T... t): start(start), t(t...), end(end), style(style) {}
-	bool parse(ParseContext& context) const {
+	bool parse_scope(ParseContext& context) const {
 		const int old_style = context.change_style(style);
 		if (!start.parse(context)) {
 			context.change_style(old_style);
 			return false;
 		}
-		while (parse_single(context)) {}
+		auto scope = context.enter_scope();
+		context.skip_to_checkpoint();
+		while (context.is_before_window_end()) {
+			context.add_checkpoint();
+			if (!parse_single(context)) {
+				break;
+			}
+		}
+		context.leave_scope(scope);
 		context.change_style(old_style);
 		return true;
 	}
@@ -572,7 +602,7 @@ public:
 template <class T> class RootScope {
 	T t;
 	bool parse_single(ParseContext& context) const {
-		if (t.parse(context)) {
+		if (t.parse_scope(context)) {
 			return true;
 		}
 		if (context.get() == '\0') {
@@ -585,8 +615,11 @@ public:
 	constexpr RootScope(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		context.skip_to_checkpoint();
-		while (context.is_before_window_end() && parse_single(context)) {
+		while (context.is_before_window_end()) {
 			context.add_checkpoint();
+			if (!parse_single(context)) {
+				break;
+			}
 		}
 		return true;
 	}
@@ -612,10 +645,10 @@ template <class parse_file_name, class parse> constexpr Language language(const 
 	return {
 		name,
 		[](ParseContext& context) {
-			return parse_file_name::expression.parse(context);
+			return reference<parse_file_name>().parse(context);
 		},
 		[](ParseContext& context) {
-			return parse::expression.parse(context);
+			return root_scope(reference<parse>()).parse(context);
 		}
 	};
 }
@@ -656,7 +689,7 @@ const Language* prism::get_language(const char* file_name) {
 std::vector<Span> prism::highlight(const Language* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
 	ParseContext context(input, tree, spans, window_start, window_end);
-	root_scope(language->parse).parse(context);
+	language->parse(context);
 	context.change_style(Style::DEFAULT);
 	return spans;
 }
