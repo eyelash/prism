@@ -1,3 +1,5 @@
+// https://docs.oracle.com/javase/specs/jls/se17/html/jls-3.html
+
 constexpr auto java_identifier_begin_char = choice(range('a', 'z'), range('A', 'Z'), '$', '_');
 constexpr auto java_identifier_char = choice(range('a', 'z'), range('A', 'Z'), '$', '_', range('0', '9'));
 constexpr auto java_identifier = sequence(java_identifier_begin_char, zero_or_more(java_identifier_char));

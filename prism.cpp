@@ -54,25 +54,25 @@ public:
 	}
 };
 
-std::size_t prism::Tree::Node::get_last_checkpoint() const {
+std::size_t Cache::Node::get_last_checkpoint() const {
 	if (checkpoints.empty()) {
 		return start_pos;
 	}
 	return checkpoints.back().pos;
 }
-void prism::Tree::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
+void Cache::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	if (pos >= get_last_checkpoint() + 16) {
 		checkpoints.push_back({pos, max_pos});
 	}
 }
-prism::Tree::Checkpoint prism::Tree::Node::find_checkpoint(std::size_t pos) const {
+Cache::Checkpoint Cache::Node::find_checkpoint(std::size_t pos) const {
 	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
 	};
 	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
 	return iter != checkpoints.rend() ? *iter : Checkpoint{start_pos, start_max_pos};
 }
-prism::Tree::Node* prism::Tree::Node::get_child(std::size_t pos, std::size_t max_pos) {
+Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
 	constexpr auto comp = [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
 	};
@@ -83,7 +83,7 @@ prism::Tree::Node* prism::Tree::Node::get_child(std::size_t pos, std::size_t max
 	children.push_back({pos, max_pos});
 	return &children.back();
 }
-void prism::Tree::Node::edit(std::size_t pos) {
+void Cache::Node::invalidate(std::size_t pos) {
 	{
 		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
 			return checkpoint.max_pos < pos;
@@ -99,14 +99,14 @@ void prism::Tree::Node::edit(std::size_t pos) {
 		children.erase(iter, children.end());
 	}
 	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
-		children.back().edit(pos);
+		children.back().invalidate(pos);
 	}
 }
-prism::Tree::Node* prism::Tree::get_root_node() {
+Cache::Node* Cache::get_root_node() {
 	return &root_node;
 }
-void prism::Tree::edit(std::size_t pos) {
-	root_node.edit(pos);
+void Cache::invalidate(std::size_t pos) {
+	root_node.invalidate(pos);
 }
 
 class Spans {
@@ -158,12 +158,12 @@ public:
 
 class ParseContext {
 	InputAdapter input;
-	prism::Tree::Node* node;
+	Cache::Node* node;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
 public:
-	ParseContext(const Input* input, prism::Tree& tree, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), node(tree.get_root_node()), window(window_start, window_end), max_pos(0), spans(spans) {}
+	ParseContext(const Input* input, Cache& cache, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), node(cache.get_root_node()), window(window_start, window_end), max_pos(0), spans(spans) {}
 	char get() const {
 		return input.get();
 	}
@@ -181,10 +181,10 @@ public:
 		input.set_position(checkpoint.pos);
 		max_pos = checkpoint.max_pos;
 	}
-	prism::Tree::Node* enter_scope() {
+	Cache::Node* enter_scope() {
 		return std::exchange(node, node->get_child(input.get_position(), std::max(max_pos, input.get_position())));
 	}
-	void leave_scope(prism::Tree::Node* old_node) {
+	void leave_scope(Cache::Node* old_node) {
 		node = old_node;
 	}
 	bool is_before_window_end() const {
@@ -652,9 +652,9 @@ constexpr Language languages[] = {
 
 const Language* prism::get_language(const char* file_name) {
 	StringInput input(file_name);
-	Tree tree;
+	Cache cache;
 	std::vector<Span> spans;
-	ParseContext context(&input, tree, spans, 0, input.size());
+	ParseContext context(&input, cache, spans, 0, input.size());
 	for (const Language& language: languages) {
 		if (language.parse_file_name(context)) {
 			return &language;
@@ -663,9 +663,9 @@ const Language* prism::get_language(const char* file_name) {
 	return nullptr;
 }
 
-std::vector<Span> prism::highlight(const Language* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end) {
+std::vector<Span> prism::highlight(const Language* language, const Input* input, Cache& cache, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
-	ParseContext context(input, tree, spans, window_start, window_end);
+	ParseContext context(input, cache, spans, window_start, window_end);
 	language->parse(context);
 	context.change_style(Style::DEFAULT);
 	return spans;

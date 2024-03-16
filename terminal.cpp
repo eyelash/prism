@@ -57,8 +57,8 @@ template <class T> static void print(const T& file, const std::vector<Span>& spa
 static void highlight(const char* path, const Language* language, const Theme& theme) {
 	const auto file = read_file(path);
 	StringInput input(file.data(), file.size());
-	prism::Tree tree;
-	std::vector<Span> spans = prism::highlight(language, &input, tree, 0, file.size());
+	Cache cache;
+	std::vector<Span> spans = prism::highlight(language, &input, cache, 0, file.size());
 	set_background_color(theme.background);
 	std::cout << '\n';
 	print(file, spans, theme, 0, file.size());
@@ -69,11 +69,11 @@ static void highlight(const char* path, const Language* language, const Theme& t
 static void highlight_incremental(const char* path, const Language* language, const Theme& theme) {
 	const auto file = read_file(path);
 	StringInput input(file.data(), file.size());
-	prism::Tree tree;
+	Cache cache;
 	set_background_color(theme.background);
 	std::cout << '\n';
 	for (std::size_t i = 0; i < file.size(); i += 1000) {
-		std::vector<Span> spans = prism::highlight(language, &input, tree, i, std::min(i + 1000, file.size()));
+		std::vector<Span> spans = prism::highlight(language, &input, cache, i, std::min(i + 1000, file.size()));
 		print(file, spans, theme, i, std::min(i + 1000, file.size()));
 	}
 	clear_style();

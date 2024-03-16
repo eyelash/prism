@@ -194,9 +194,7 @@ public:
 	}
 };
 
-namespace prism {
-
-class Tree {
+class Cache {
 public:
 	struct Checkpoint {
 		std::size_t pos;
@@ -211,17 +209,19 @@ public:
 		void add_checkpoint(std::size_t pos, std::size_t max_pos);
 		Checkpoint find_checkpoint(std::size_t pos) const;
 		Node* get_child(std::size_t pos, std::size_t max_pos);
-		void edit(std::size_t pos);
+		void invalidate(std::size_t pos);
 	};
 private:
 	Node root_node = {0, 0};
 public:
 	Node* get_root_node();
-	void edit(std::size_t pos);
+	void invalidate(std::size_t pos);
 };
+
+namespace prism {
 
 const Theme& get_theme(const char* name);
 const Language* get_language(const char* file_name);
-std::vector<Span> highlight(const Language* language, const Input* input, Tree& tree, std::size_t window_start, std::size_t window_end);
+std::vector<Span> highlight(const Language* language, const Input* input, Cache& cache, std::size_t window_start, std::size_t window_end);
 
 }
