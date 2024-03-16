@@ -493,29 +493,6 @@ template <class T> constexpr auto reference() {
 	return Reference<T>();
 }
 
-class ScopeWrapper {
-	class Interface {
-	public:
-		virtual ~Interface() = default;
-		virtual bool parse_scope(ParseContext&) const = 0;
-	};
-	template <class T> class Implementation final: public Interface {
-		T t;
-	public:
-		constexpr Implementation(T t): t(t) {}
-		bool parse_scope(ParseContext& context) const override {
-			return t.parse_scope(context);
-		}
-	};
-	std::unique_ptr<Interface> scope;
-public:
-	ScopeWrapper() {}
-	template <class T> ScopeWrapper(T t): scope(std::make_unique<Implementation<T>>(t)) {}
-	bool parse_scope(ParseContext& context) const {
-		return scope->parse_scope(context);
-	}
-};
-
 template <class... T> class Scope;
 template <class S, class E, class... T> class NestedScope;
 
