@@ -250,72 +250,56 @@ public:
 	}
 };
 
-template <class... T> class Tuple;
-template <> class Tuple<> {
+template <class... T> class Sequence;
+template <> class Sequence<> {
 public:
-	constexpr Tuple() {}
-	bool parse_sequence(ParseContext&) const {
+	constexpr Sequence() {}
+	bool parse(ParseContext& context) const {
 		return true;
 	}
-	bool parse_choice(ParseContext&) const {
-		return false;
-	}
 };
-template <class T0, class... T> class Tuple<T0, T...> {
-public:
+template <class T0, class... T> class Sequence<T0, T...> {
 	T0 t0;
-	Tuple<T...> t;
-	constexpr Tuple(T0 t0, T... t): t0(t0), t(t...) {}
-};
-
-class SequenceImpl {
+	Sequence<T...> t;
 public:
-	static bool parse(const Tuple<>&, ParseContext& context) {
-		return true;
-	}
-	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
+	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
+	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
-		if (!t.t0.parse(context)) {
+		if (!t0.parse(context)) {
 			return false;
 		}
-		if (!parse(t.t, context)) {
+		if (!t.parse(context)) {
 			context.restore(save_point);
 			return false;
 		}
 		return true;
 	}
 };
-template <class... T> class Sequence {
-	Tuple<T...> t;
-public:
-	constexpr Sequence(T... t): t(t...) {}
-	bool parse(ParseContext& context) const {
-		return SequenceImpl::parse(t, context);
-	}
-};
+template <class... T> Sequence(T...) -> Sequence<T...>;
 
-class ChoiceImpl {
+template <class... T> class Choice;
+template <> class Choice<> {
 public:
-	static bool parse(const Tuple<>&, ParseContext& context) {
+	constexpr Choice() {}
+	bool parse(ParseContext& context) const {
 		return false;
 	}
-	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
-		if (t.t0.parse(context)) {
+};
+template <class T0, class... T> class Choice<T0, T...> {
+	T0 t0;
+	Choice<T...> t;
+public:
+	constexpr Choice(T0 t0, T... t): t0(t0), t(t...) {}
+	bool parse(ParseContext& context) const {
+		if (t0.parse(context)) {
 			return true;
 		}
 		else {
-			return parse(t.t, context);
+			return t.parse(context);
 		}
 	}
 };
-template <class... T> class Choice {
-	Tuple<T...> t;
-public:
-	constexpr Choice(T... t): t(t...) {}
-	bool parse(ParseContext& context) const {
-		return ChoiceImpl::parse(t, context);
-	}
-};
+template <class... T> Choice(T...) -> Choice<T...>;
 
 template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> class Repetition {
 	T t;
@@ -502,50 +486,50 @@ template <class S, class E, class... T> struct is_scope<NestedScope<S, E, T...>>
 template <class T> struct is_scope<const T>: std::bool_constant<is_scope<T>::value> {};
 template <class T> struct is_scope<Reference<T>>: std::bool_constant<is_scope<decltype(T::expression)>::value> {};
 
-class ScopeImpl {
+template <class... T> class Scope;
+template <> class Scope<> {
 public:
-	static bool parse(const Tuple<>&, ParseContext& context) {
+	constexpr Scope() {}
+	bool parse_scope(ParseContext& context) const {
 		return false;
 	}
-	template <class T0, class... T> static bool parse(const Tuple<T0, T...>& t, ParseContext& context) {
+};
+template <class T0, class... T> class Scope<T0, T...> {
+	T0 t0;
+	Scope<T...> t;
+public:
+	constexpr Scope(T0 t0, T... t): t0(t0), t(t...) {}
+	bool parse_scope(ParseContext& context) const {
 		if constexpr (is_scope<T0>::value) {
-			if (t.t0.parse_scope(context)) {
+			if (t0.parse_scope(context)) {
 				return true;
 			}
 			else {
-				return parse(t.t, context);
+				return t.parse_scope(context);
 			}
 		}
 		else {
-			if (t.t0.parse(context)) {
+			if (t0.parse(context)) {
 				return true;
 			}
 			else {
-				return parse(t.t, context);
+				return t.parse_scope(context);
 			}
 		}
 	}
 };
-
-template <class... T> class Scope {
-	Tuple<T...> tuple;
-public:
-	constexpr Scope(T... t): tuple(t...) {}
-	bool parse_scope(ParseContext& context) const {
-		return ScopeImpl::parse(tuple, context);
-	}
-};
+template <class... T> Scope(T...) -> Scope<T...>;
 
 template <class S, class E, class... T> class NestedScope {
 	S start;
-	Tuple<T...> t;
+	Scope<T...> t;
 	E end;
 	int style;
 	bool parse_single(ParseContext& context) const {
 		if (end.parse(context)) {
 			return false;
 		}
-		if (ScopeImpl::parse(t, context)) {
+		if (t.parse_scope(context)) {
 			return true;
 		}
 		if (context.get() == '\0') {
