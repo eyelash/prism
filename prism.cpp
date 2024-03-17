@@ -207,6 +207,7 @@ public:
 template <class F> class Char {
 	F f;
 public:
+	static constexpr bool always_succeeds = false;
 	constexpr Char(F f): f(f) {}
 	bool parse(ParseContext& context) const {
 		if (!f(context.get())) {
@@ -220,6 +221,7 @@ public:
 class String {
 	const char* string;
 public:
+	static constexpr bool always_succeeds = false;
 	constexpr String(const char* string): string(string) {}
 	bool parse(ParseContext& context) const {
 		if (*string == '\0') {
@@ -244,6 +246,7 @@ public:
 class Function {
 	bool (*function)(ParseContext&);
 public:
+	static constexpr bool always_succeeds = false;
 	constexpr Function(bool (*function)(ParseContext&)): function(function) {}
 	bool parse(ParseContext& context) const {
 		return function(context);
@@ -253,6 +256,7 @@ public:
 template <class... T> class Sequence;
 template <> class Sequence<> {
 public:
+	static constexpr bool always_succeeds = true;
 	constexpr Sequence() {}
 	bool parse(ParseContext& context) const {
 		return true;
@@ -262,6 +266,7 @@ template <class T0, class... T> class Sequence<T0, T...> {
 	T0 t0;
 	Sequence<T...> t;
 public:
+	static constexpr bool always_succeeds = T0::always_succeeds && Sequence<T...>::always_succeeds;
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -280,6 +285,7 @@ template <class... T> Sequence(T...) -> Sequence<T...>;
 template <class... T> class Choice;
 template <> class Choice<> {
 public:
+	static constexpr bool always_succeeds = false;
 	constexpr Choice() {}
 	bool parse(ParseContext& context) const {
 		return false;
@@ -289,6 +295,7 @@ template <class T0, class... T> class Choice<T0, T...> {
 	T0 t0;
 	Choice<T...> t;
 public:
+	static constexpr bool always_succeeds = T0::always_succeeds || Choice<T...>::always_succeeds;
 	constexpr Choice(T0 t0, T... t): t0(t0), t(t...) {}
 	bool parse(ParseContext& context) const {
 		if (t0.parse(context)) {
@@ -304,6 +311,8 @@ template <class... T> Choice(T...) -> Choice<T...>;
 template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> class Repetition {
 	T t;
 public:
+	static constexpr bool always_succeeds = MIN_REPETITIONS == 0;
+	static_assert(!T::always_succeeds, "infinite loop in grammar");
 	constexpr Repetition(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		if constexpr (MIN_REPETITIONS > 0) {
@@ -331,6 +340,7 @@ public:
 template <class T> class Optional {
 	T t;
 public:
+	static constexpr bool always_succeeds = true;
 	constexpr Optional(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		t.parse(context);
@@ -341,6 +351,7 @@ public:
 template <class T> class And {
 	T t;
 public:
+	static constexpr bool always_succeeds = T::always_succeeds;
 	constexpr And(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -357,6 +368,7 @@ public:
 template <class T> class Not {
 	T t;
 public:
+	static constexpr bool always_succeeds = false;
 	constexpr Not(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -374,6 +386,7 @@ template <class T> class Highlight {
 	T t;
 	int style;
 public:
+	static constexpr bool always_succeeds = T::always_succeeds;
 	constexpr Highlight(T t, int style): t(t), style(style) {}
 	bool parse(ParseContext& context) const {
 		const int old_style = context.change_style(style);
