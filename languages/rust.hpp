@@ -1,3 +1,5 @@
+// https://doc.rust-lang.org/reference/index.html
+
 struct rust_block_comment {
 	static constexpr auto expression = nested_scope(Style::COMMENT, "/*", "*/", reference<rust_block_comment>());
 };
@@ -5,6 +7,24 @@ constexpr auto rust_comment = scope(
 	reference<rust_block_comment>(),
 	highlight(Style::COMMENT, sequence("//", repetition(but('\n'))))
 );
+constexpr auto rust_escape = sequence('\\', choice(
+	't', 'n', 'r',
+	'"', '\'', '\\',
+	'0',
+	sequence('x', range('0', '7'), hex_digit),
+	sequence("u{", repetition<1, 6>(sequence(hex_digit, zero_or_more('_'))), '}')
+));
+constexpr auto rust_string = sequence(
+	'"',
+	repetition(choice(highlight(Style::ESCAPE, rust_escape), but('"'))),
+	optional('"')
+);
+constexpr auto rust_character = sequence(
+	'\'',
+	choice(highlight(Style::ESCAPE, rust_escape), but(choice('\'', '\n'))),
+	'\''
+);
+constexpr auto rust_lifetime = sequence('\'', c_identifier);
 
 struct rust_file_name {
 	static constexpr auto expression = ends_with(".rs");
@@ -16,6 +36,11 @@ struct rust_language {
 		c_whitespace_char,
 		// comments
 		rust_comment,
+		// strings and characters
+		highlight(Style::STRING, rust_string),
+		highlight(Style::STRING, rust_character),
+		// lifetimes
+		highlight(Style::LITERAL, rust_lifetime),
 		// literals
 		highlight(Style::LITERAL, c_keywords(
 			"false",
