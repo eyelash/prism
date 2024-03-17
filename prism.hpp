@@ -160,6 +160,9 @@ public:
 	int style;
 	Span() {}
 	constexpr Span(std::size_t start, std::size_t end, int style): Range(start, end), style(style) {}
+	constexpr bool operator ==(const Span& span) const {
+		return start == span.start && end == span.end && style == span.style;
+	}
 	/*friend std::ostream& operator <<(std::ostream& os, const Span& span) {
 		return os << "(" << span.start << ", " << span.end << ") -> " << span.style;
 	}*/
