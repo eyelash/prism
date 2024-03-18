@@ -208,6 +208,7 @@ public:
 		std::size_t start_max_pos;
 		std::vector<Checkpoint> checkpoints;
 		std::vector<Node> children;
+		Node(std::size_t start_pos, std::size_t start_max_pos);
 		std::size_t get_last_checkpoint() const;
 		void add_checkpoint(std::size_t pos, std::size_t max_pos);
 		Checkpoint find_checkpoint(std::size_t pos) const;
@@ -215,8 +216,9 @@ public:
 		void invalidate(std::size_t pos);
 	};
 private:
-	Node root_node = {0, 0};
+	Node root_node;
 public:
+	Cache();
 	Node* get_root_node();
 	void invalidate(std::size_t pos);
 };

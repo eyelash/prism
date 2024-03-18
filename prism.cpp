@@ -54,6 +54,7 @@ public:
 	}
 };
 
+Cache::Node::Node(std::size_t start_pos, std::size_t start_max_pos): start_pos(start_pos), start_max_pos(start_max_pos) {}
 std::size_t Cache::Node::get_last_checkpoint() const {
 	if (checkpoints.empty()) {
 		return start_pos;
@@ -80,7 +81,7 @@ Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
 	if (iter != children.end()) {
 		return &*iter;
 	}
-	children.push_back({pos, max_pos});
+	children.emplace_back(pos, max_pos);
 	return &children.back();
 }
 void Cache::Node::invalidate(std::size_t pos) {
@@ -102,6 +103,7 @@ void Cache::Node::invalidate(std::size_t pos) {
 		children.back().invalidate(pos);
 	}
 }
+Cache::Cache(): root_node(0, 0) {}
 Cache::Node* Cache::get_root_node() {
 	return &root_node;
 }
