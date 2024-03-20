@@ -67,17 +67,20 @@ void Cache::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	}
 }
 Cache::Checkpoint Cache::Node::find_checkpoint(std::size_t pos) const {
-	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
-	};
-	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
-	return iter != checkpoints.rend() ? *iter : Checkpoint{start_pos, start_max_pos};
+	});
+	if (iter != checkpoints.rend()) {
+		return *iter;
+	}
+	else {
+		return {start_pos, start_max_pos};
+	}
 }
 Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
-	constexpr auto comp = [](const Node& child, std::size_t pos) {
+	auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
-	};
-	auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+	});
 	if (iter != children.end()) {
 		return &*iter;
 	}
@@ -86,17 +89,15 @@ Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
 }
 void Cache::Node::invalidate(std::size_t pos) {
 	{
-		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, [](const Checkpoint& checkpoint, std::size_t pos) {
 			return checkpoint.max_pos < pos;
-		};
-		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+		});
 		checkpoints.erase(iter, checkpoints.end());
 	}
 	{
-		constexpr auto comp = [](const Node& child, std::size_t pos) {
+		auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 			return child.start_max_pos < pos;
-		};
-		auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+		});
 		children.erase(iter, children.end());
 	}
 	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
@@ -113,8 +114,8 @@ void Cache::invalidate(std::size_t pos) {
 
 class Spans {
 	std::vector<Span>& spans;
-	std::size_t start = 0;
-	int style = Style::DEFAULT;
+	std::size_t start;
+	int style;
 	void emit_span(std::size_t end, const Range& window) {
 		if (start == end) {
 			return;
@@ -135,7 +136,7 @@ class Spans {
 		spans.emplace_back(std::max(start, window.start), std::min(end, window.end), style);
 	}
 public:
-	Spans(std::vector<Span>& spans): spans(spans) {}
+	Spans(std::vector<Span>& spans): spans(spans), start(0), style(Style::DEFAULT) {}
 	int change_style(std::size_t pos, int new_style, const Range& window) {
 		emit_span(pos, window);
 		start = pos;

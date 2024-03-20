@@ -67,17 +67,20 @@ void Cache::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
 	}
 }
 Cache::Checkpoint Cache::Node::find_checkpoint(std::size_t pos) const {
-	constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
-	};
-	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, comp);
-	return iter != checkpoints.rend() ? *iter : Checkpoint{start_pos, start_max_pos};
+	});
+	if (iter != checkpoints.rend()) {
+		return *iter;
+	}
+	else {
+		return {start_pos, start_max_pos};
+	}
 }
 Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
-	constexpr auto comp = [](const Node& child, std::size_t pos) {
+	auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
-	};
-	auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+	});
 	if (iter != children.end()) {
 		return &*iter;
 	}
@@ -86,17 +89,15 @@ Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
 }
 void Cache::Node::invalidate(std::size_t pos) {
 	{
-		constexpr auto comp = [](const Checkpoint& checkpoint, std::size_t pos) {
+		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, [](const Checkpoint& checkpoint, std::size_t pos) {
 			return checkpoint.max_pos < pos;
-		};
-		auto iter = std::lower_bound(checkpoints.begin(), checkpoints.end(), pos, comp);
+		});
 		checkpoints.erase(iter, checkpoints.end());
 	}
 	{
-		constexpr auto comp = [](const Node& child, std::size_t pos) {
+		auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 			return child.start_max_pos < pos;
-		};
-		auto iter = std::lower_bound(children.begin(), children.end(), pos, comp);
+		});
 		children.erase(iter, children.end());
 	}
 	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
@@ -113,8 +114,8 @@ void Cache::invalidate(std::size_t pos) {
 
 class Spans {
 	std::vector<Span>& spans;
-	std::size_t start = 0;
-	int style = Style::DEFAULT;
+	std::size_t start;
+	int style;
 	void emit_span(std::size_t end, const Range& window) {
 		if (start == end) {
 			return;
@@ -135,7 +136,7 @@ class Spans {
 		spans.emplace_back(std::max(start, window.start), std::min(end, window.end), style);
 	}
 public:
-	Spans(std::vector<Span>& spans): spans(spans) {}
+	Spans(std::vector<Span>& spans): spans(spans), start(0), style(Style::DEFAULT) {}
 	int change_style(std::size_t pos, int new_style, const Range& window) {
 		emit_span(pos, window);
 		start = pos;
@@ -209,7 +210,9 @@ public:
 template <class F> class Char {
 	F f;
 public:
-	static constexpr bool always_succeeds = false;
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	constexpr Char(F f): f(f) {}
 	bool parse(ParseContext& context) const {
 		if (!f(context.get())) {
@@ -223,7 +226,9 @@ public:
 class String {
 	const char* string;
 public:
-	static constexpr bool always_succeeds = false;
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	constexpr String(const char* string): string(string) {}
 	bool parse(ParseContext& context) const {
 		if (*string == '\0') {
@@ -248,7 +253,9 @@ public:
 class Function {
 	bool (*function)(ParseContext&);
 public:
-	static constexpr bool always_succeeds = false;
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	constexpr Function(bool (*function)(ParseContext&)): function(function) {}
 	bool parse(ParseContext& context) const {
 		return function(context);
@@ -258,7 +265,9 @@ public:
 template <class... T> class Sequence;
 template <> class Sequence<> {
 public:
-	static constexpr bool always_succeeds = true;
+	static constexpr bool always_succeeds() {
+		return true;
+	}
 	constexpr Sequence() {}
 	bool parse(ParseContext& context) const {
 		return true;
@@ -268,7 +277,9 @@ template <class T0, class... T> class Sequence<T0, T...> {
 	T0 t0;
 	Sequence<T...> t;
 public:
-	static constexpr bool always_succeeds = T0::always_succeeds && Sequence<T...>::always_succeeds;
+	static constexpr bool always_succeeds() {
+		return T0::always_succeeds() && Sequence<T...>::always_succeeds();
+	}
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -287,7 +298,9 @@ template <class... T> Sequence(T...) -> Sequence<T...>;
 template <class... T> class Choice;
 template <> class Choice<> {
 public:
-	static constexpr bool always_succeeds = false;
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	constexpr Choice() {}
 	bool parse(ParseContext& context) const {
 		return false;
@@ -297,7 +310,9 @@ template <class T0, class... T> class Choice<T0, T...> {
 	T0 t0;
 	Choice<T...> t;
 public:
-	static constexpr bool always_succeeds = T0::always_succeeds || Choice<T...>::always_succeeds;
+	static constexpr bool always_succeeds() {
+		return T0::always_succeeds() || Choice<T...>::always_succeeds();
+	}
 	constexpr Choice(T0 t0, T... t): t0(t0), t(t...) {}
 	bool parse(ParseContext& context) const {
 		if (t0.parse(context)) {
@@ -313,8 +328,9 @@ template <class... T> Choice(T...) -> Choice<T...>;
 template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> class Repetition {
 	T t;
 public:
-	static constexpr bool always_succeeds = MIN_REPETITIONS == 0;
-	static_assert(!T::always_succeeds, "infinite loop in grammar");
+	static constexpr bool always_succeeds() {
+		return MIN_REPETITIONS == 0 || T::always_succeeds();
+	}
 	constexpr Repetition(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		if constexpr (MIN_REPETITIONS > 0) {
@@ -329,11 +345,11 @@ public:
 				}
 			}
 		}
-		if constexpr (MAX_REPETITIONS == 0) {
-			while (t.parse(context)) {}
-		}
-		else if constexpr (MAX_REPETITIONS > MIN_REPETITIONS) {
-			for (std::size_t i = MIN_REPETITIONS; i < MAX_REPETITIONS && t.parse(context); ++i) {}
+		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
+		for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
+			if (!t.parse(context)) {
+				break;
+			}
 		}
 		return true;
 	}
@@ -342,7 +358,9 @@ public:
 template <class T> class Optional {
 	T t;
 public:
-	static constexpr bool always_succeeds = true;
+	static constexpr bool always_succeeds() {
+		return true;
+	}
 	constexpr Optional(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		t.parse(context);
@@ -353,7 +371,9 @@ public:
 template <class T> class And {
 	T t;
 public:
-	static constexpr bool always_succeeds = T::always_succeeds;
+	static constexpr bool always_succeeds() {
+		return T::always_succeeds();
+	}
 	constexpr And(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -370,7 +390,9 @@ public:
 template <class T> class Not {
 	T t;
 public:
-	static constexpr bool always_succeeds = false;
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	constexpr Not(T t): t(t) {}
 	bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
@@ -388,7 +410,9 @@ template <class T> class Highlight {
 	T t;
 	int style;
 public:
-	static constexpr bool always_succeeds = T::always_succeeds;
+	static constexpr bool always_succeeds() {
+		return T::always_succeeds();
+	}
 	constexpr Highlight(T t, int style): t(t), style(style) {}
 	bool parse(ParseContext& context) const {
 		const int old_style = context.change_style(style);
@@ -409,6 +433,9 @@ public:
 
 template <class T> class Reference {
 public:
+	static constexpr bool always_succeeds() {
+		return decltype(T::expression)::always_succeeds();
+	}
 	bool parse(ParseContext& context) const {
 		return T::expression.parse(context);
 	}
