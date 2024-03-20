@@ -214,7 +214,7 @@ public:
 		return false;
 	}
 	constexpr Char(F f): f(f) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		if (!f(context.get())) {
 			return false;
 		}
@@ -230,7 +230,7 @@ public:
 		return false;
 	}
 	constexpr String(const char* string): string(string) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		if (*string == '\0') {
 			return true;
 		}
@@ -269,7 +269,7 @@ public:
 		return true;
 	}
 	constexpr Sequence() {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		return true;
 	}
 };
@@ -281,12 +281,16 @@ public:
 		return T0::always_succeeds() && Sequence<T...>::always_succeeds();
 	}
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
+		const bool sequence_can_checkpoint = can_checkpoint && Sequence<T...>::always_succeeds();
 		const auto save_point = context.save();
-		if (!t0.parse(context)) {
+		if (!t0.parse(context, sequence_can_checkpoint)) {
 			return false;
 		}
-		if (!t.parse(context)) {
+		if (sequence_can_checkpoint && !context.is_before_window_end()) {
+			return true;
+		}
+		if (!t.parse(context, sequence_can_checkpoint)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -302,7 +306,7 @@ public:
 		return false;
 	}
 	constexpr Choice() {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		return false;
 	}
 };
@@ -314,12 +318,12 @@ public:
 		return T0::always_succeeds() || Choice<T...>::always_succeeds();
 	}
 	constexpr Choice(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse(ParseContext& context) const {
-		if (t0.parse(context)) {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
+		if (t0.parse(context, can_checkpoint)) {
 			return true;
 		}
 		else {
-			return t.parse(context);
+			return t.parse(context, can_checkpoint);
 		}
 	}
 };
@@ -332,23 +336,43 @@ public:
 		return MIN_REPETITIONS == 0 || T::always_succeeds();
 	}
 	constexpr Repetition(T t): t(t) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		if constexpr (MIN_REPETITIONS > 0) {
+			const bool sequence_can_checkpoint = can_checkpoint && T::always_succeeds();
 			const auto save_point = context.save();
-			if (!t.parse(context)) {
+			if (!t.parse(context, sequence_can_checkpoint)) {
 				return false;
 			}
+			if (sequence_can_checkpoint && !context.is_before_window_end()) {
+				return true;
+			}
 			for (std::size_t i = 1; i < MIN_REPETITIONS; ++i) {
-				if (!t.parse(context)) {
+				if (!t.parse(context, sequence_can_checkpoint)) {
 					context.restore(save_point);
 					return false;
+				}
+				if (sequence_can_checkpoint && !context.is_before_window_end()) {
+					return true;
 				}
 			}
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
-		for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
-			if (!t.parse(context)) {
-				break;
+		if (can_checkpoint) {
+			auto scope = context.enter_scope();
+			context.skip_to_checkpoint();
+			for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS) && context.is_before_window_end(); ++i) {
+				context.add_checkpoint();
+				if (!t.parse(context, can_checkpoint)) {
+					break;
+				}
+			}
+			context.leave_scope(scope);
+		}
+		else {
+			for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
+				if (!t.parse(context, can_checkpoint)) {
+					break;
+				}
 			}
 		}
 		return true;
@@ -362,8 +386,8 @@ public:
 		return true;
 	}
 	constexpr Optional(T t): t(t) {}
-	bool parse(ParseContext& context) const {
-		t.parse(context);
+	bool parse(ParseContext& context, bool can_checkpoint) const {
+		t.parse(context, can_checkpoint);
 		return true;
 	}
 };
@@ -375,9 +399,9 @@ public:
 		return T::always_succeeds();
 	}
 	constexpr And(T t): t(t) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		const auto save_point = context.save();
-		if (t.parse(context)) {
+		if (t.parse(context, false)) {
 			context.restore(save_point);
 			return true;
 		}
@@ -394,9 +418,9 @@ public:
 		return false;
 	}
 	constexpr Not(T t): t(t) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		const auto save_point = context.save();
-		if (t.parse(context)) {
+		if (t.parse(context, false)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -414,9 +438,9 @@ public:
 		return T::always_succeeds();
 	}
 	constexpr Highlight(T t, int style): t(t), style(style) {}
-	bool parse(ParseContext& context) const {
+	bool parse(ParseContext& context, bool can_checkpoint) const {
 		const int old_style = context.change_style(style);
-		const bool result = t.parse(context);
+		const bool result = t.parse(context, can_checkpoint);
 		context.change_style(old_style);
 		return result;
 	}
@@ -436,11 +460,8 @@ public:
 	static constexpr bool always_succeeds() {
 		return decltype(T::expression)::always_succeeds();
 	}
-	bool parse(ParseContext& context) const {
-		return T::expression.parse(context);
-	}
-	bool parse_scope(ParseContext& context) const {
-		return T::expression.parse_scope(context);
+	bool parse(ParseContext& context, bool can_checkpoint) const {
+		return T::expression.parse(context, can_checkpoint);
 	}
 };
 
@@ -519,123 +540,18 @@ template <class T> constexpr auto reference() {
 	return Reference<T>();
 }
 
-template <class... T> class Scope;
-template <class S, class E, class... T> class NestedScope;
-
-template <class> struct is_scope: std::false_type {};
-template <class... T> struct is_scope<Scope<T...>>: std::true_type {};
-template <class S, class E, class... T> struct is_scope<NestedScope<S, E, T...>>: std::true_type {};
-template <class T> struct is_scope<const T>: std::bool_constant<is_scope<T>::value> {};
-template <class T> struct is_scope<Reference<T>>: std::bool_constant<is_scope<decltype(T::expression)>::value> {};
-
-template <class... T> class Scope;
-template <> class Scope<> {
-public:
-	constexpr Scope() {}
-	bool parse_scope(ParseContext& context) const {
-		return false;
-	}
-};
-template <class T0, class... T> class Scope<T0, T...> {
-	T0 t0;
-	Scope<T...> t;
-public:
-	constexpr Scope(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse_scope(ParseContext& context) const {
-		if constexpr (is_scope<T0>::value) {
-			if (t0.parse_scope(context)) {
-				return true;
-			}
-			else {
-				return t.parse_scope(context);
-			}
-		}
-		else {
-			if (t0.parse(context)) {
-				return true;
-			}
-			else {
-				return t.parse_scope(context);
-			}
-		}
-	}
-};
-template <class... T> Scope(T...) -> Scope<T...>;
-
-template <class S, class E, class... T> class NestedScope {
-	S start;
-	Scope<T...> t;
-	E end;
-	int style;
-	bool parse_single(ParseContext& context) const {
-		if (end.parse(context)) {
-			return false;
-		}
-		if (t.parse_scope(context)) {
-			return true;
-		}
-		if (context.get() == '\0') {
-			return false;
-		}
-		context.advance();
-		return true;
-	}
-public:
-	constexpr NestedScope(int style, S start, E end, T... t): start(start), t(t...), end(end), style(style) {}
-	bool parse_scope(ParseContext& context) const {
-		const int old_style = context.change_style(style);
-		if (!start.parse(context)) {
-			context.change_style(old_style);
-			return false;
-		}
-		auto scope = context.enter_scope();
-		context.skip_to_checkpoint();
-		while (context.is_before_window_end()) {
-			context.add_checkpoint();
-			if (!parse_single(context)) {
-				break;
-			}
-		}
-		context.leave_scope(scope);
-		context.change_style(old_style);
-		return true;
-	}
-};
-
-template <class T> class RootScope {
-	T t;
-	bool parse_single(ParseContext& context) const {
-		if (t.parse_scope(context)) {
-			return true;
-		}
-		if (context.get() == '\0') {
-			return false;
-		}
-		context.advance();
-		return true;
-	}
-public:
-	constexpr RootScope(T t): t(t) {}
-	bool parse(ParseContext& context) const {
-		context.skip_to_checkpoint();
-		while (context.is_before_window_end()) {
-			context.add_checkpoint();
-			if (!parse_single(context)) {
-				break;
-			}
-		}
-		return true;
-	}
-};
-
 template <class... T> constexpr auto scope(T... t) {
-	return Scope(get_expression(t)...);
+	return choice(t...);
 }
 template <class S, class E, class... T> constexpr auto nested_scope(int style, S start, E end, T... t) {
-	return NestedScope(style, get_expression(start), get_expression(end), get_expression(t)...);
+	return highlight(style, sequence(
+		start,
+		repetition(sequence(not_(end), choice(t..., any_char()))),
+		optional(end)
+	));
 }
 template <class T> constexpr auto root_scope(T t) {
-	return RootScope(get_expression(t));
+	return repetition(choice(t, any_char()));
 }
 
 struct Language {
@@ -648,10 +564,10 @@ template <class parse_file_name, class parse> constexpr Language language(const 
 	return {
 		name,
 		[](ParseContext& context) {
-			return reference<parse_file_name>().parse(context);
+			return reference<parse_file_name>().parse(context, false);
 		},
 		[](ParseContext& context) {
-			return root_scope(reference<parse>()).parse(context);
+			return root_scope(reference<parse>()).parse(context, true);
 		}
 	};
 }
