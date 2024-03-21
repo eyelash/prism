@@ -214,7 +214,7 @@ public:
 		return false;
 	}
 	constexpr Char(F f): f(f) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		if (!f(context.get())) {
 			return false;
 		}
@@ -230,7 +230,7 @@ public:
 		return false;
 	}
 	constexpr String(const char* string): string(string) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		if (*string == '\0') {
 			return true;
 		}
@@ -257,7 +257,7 @@ public:
 		return true;
 	}
 	constexpr Sequence() {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		return true;
 	}
 };
@@ -269,16 +269,16 @@ public:
 		return T0::always_succeeds() && Sequence<T...>::always_succeeds();
 	}
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
-		const bool sequence_can_checkpoint = can_checkpoint && Sequence<T...>::always_succeeds();
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
+		constexpr bool sequence_can_checkpoint = can_checkpoint && Sequence<T...>::always_succeeds();
 		const auto save_point = context.save();
-		if (!t0.parse(context, sequence_can_checkpoint)) {
+		if (!t0.template parse<sequence_can_checkpoint>(context)) {
 			return false;
 		}
 		if (sequence_can_checkpoint && !context.is_before_window_end()) {
 			return true;
 		}
-		if (!t.parse(context, sequence_can_checkpoint)) {
+		if (!t.template parse<sequence_can_checkpoint>(context)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -294,7 +294,7 @@ public:
 		return false;
 	}
 	constexpr Choice() {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		return false;
 	}
 };
@@ -306,12 +306,12 @@ public:
 		return T0::always_succeeds() || Choice<T...>::always_succeeds();
 	}
 	constexpr Choice(T0 t0, T... t): t0(t0), t(t...) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
-		if (t0.parse(context, can_checkpoint)) {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
+		if (t0.template parse<can_checkpoint>(context)) {
 			return true;
 		}
 		else {
-			return t.parse(context, can_checkpoint);
+			return t.template parse<can_checkpoint>(context);
 		}
 	}
 };
@@ -324,18 +324,18 @@ public:
 		return MIN_REPETITIONS == 0 || T::always_succeeds();
 	}
 	constexpr Repetition(T t): t(t) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		if constexpr (MIN_REPETITIONS > 0) {
-			const bool sequence_can_checkpoint = can_checkpoint && T::always_succeeds();
+			constexpr bool sequence_can_checkpoint = can_checkpoint && T::always_succeeds();
 			const auto save_point = context.save();
-			if (!t.parse(context, sequence_can_checkpoint)) {
+			if (!t.template parse<sequence_can_checkpoint>(context)) {
 				return false;
 			}
 			if (sequence_can_checkpoint && !context.is_before_window_end()) {
 				return true;
 			}
 			for (std::size_t i = 1; i < MIN_REPETITIONS; ++i) {
-				if (!t.parse(context, sequence_can_checkpoint)) {
+				if (!t.template parse<sequence_can_checkpoint>(context)) {
 					context.restore(save_point);
 					return false;
 				}
@@ -345,12 +345,12 @@ public:
 			}
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
-		if (can_checkpoint) {
+		if constexpr (can_checkpoint) {
 			auto scope = context.enter_scope();
 			context.skip_to_checkpoint();
 			for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS) && context.is_before_window_end(); ++i) {
 				context.add_checkpoint();
-				if (!t.parse(context, can_checkpoint)) {
+				if (!t.template parse<can_checkpoint>(context)) {
 					break;
 				}
 			}
@@ -358,7 +358,7 @@ public:
 		}
 		else {
 			for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
-				if (!t.parse(context, can_checkpoint)) {
+				if (!t.template parse<can_checkpoint>(context)) {
 					break;
 				}
 			}
@@ -374,8 +374,8 @@ public:
 		return true;
 	}
 	constexpr Optional(T t): t(t) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
-		t.parse(context, can_checkpoint);
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
+		t.template parse<can_checkpoint>(context);
 		return true;
 	}
 };
@@ -387,9 +387,9 @@ public:
 		return T::always_succeeds();
 	}
 	constexpr And(T t): t(t) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
-		if (t.parse(context, false)) {
+		if (t.template parse<false>(context)) {
 			context.restore(save_point);
 			return true;
 		}
@@ -406,9 +406,9 @@ public:
 		return false;
 	}
 	constexpr Not(T t): t(t) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		const auto save_point = context.save();
-		if (t.parse(context, false)) {
+		if (t.template parse<false>(context)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -426,9 +426,9 @@ public:
 		return T::always_succeeds();
 	}
 	constexpr Highlight(T t, int style): t(t), style(style) {}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
 		const int old_style = context.change_style(style);
-		const bool result = t.parse(context, can_checkpoint);
+		const bool result = t.template parse<can_checkpoint>(context);
 		context.change_style(old_style);
 		return result;
 	}
@@ -448,8 +448,8 @@ public:
 	static constexpr bool always_succeeds() {
 		return decltype(T::expression)::always_succeeds();
 	}
-	bool parse(ParseContext& context, bool can_checkpoint) const {
-		return T::expression.parse(context, can_checkpoint);
+	template <bool can_checkpoint> bool parse(ParseContext& context) const {
+		return T::expression.template parse<can_checkpoint>(context);
 	}
 };
 
@@ -549,10 +549,10 @@ template <class parse_file_name, class parse> constexpr Language language(const 
 	return {
 		name,
 		[](ParseContext& context) {
-			return reference<parse_file_name>().parse(context, false);
+			return reference<parse_file_name>().template parse<false>(context);
 		},
 		[](ParseContext& context) {
-			return root_scope(reference<parse>()).parse(context, true);
+			return root_scope(reference<parse>()).template parse<true>(context);
 		}
 	};
 }
