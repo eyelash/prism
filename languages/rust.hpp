@@ -1,11 +1,18 @@
 // https://doc.rust-lang.org/reference/index.html
 
 struct rust_block_comment {
-	static constexpr auto expression = nested_scope(Style::COMMENT, "/*", "*/", reference<rust_block_comment>());
+	static constexpr auto expression = sequence(
+		"/*",
+		repetition(choice(
+			reference<rust_block_comment>(),
+			but("*/")
+		)),
+		optional("*/")
+	);
 };
-constexpr auto rust_comment = scope(
+constexpr auto rust_comment = choice(
 	reference<rust_block_comment>(),
-	highlight(Style::COMMENT, sequence("//", repetition(but('\n'))))
+	sequence("//", repetition(but('\n')))
 );
 constexpr auto rust_escape = sequence('\\', choice(
 	't', 'n', 'r',
@@ -35,7 +42,7 @@ struct rust_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		rust_comment,
+		highlight(Style::COMMENT, rust_comment),
 		// strings and characters
 		highlight(Style::STRING, rust_string),
 		highlight(Style::STRING, rust_character),

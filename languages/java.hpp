@@ -90,9 +90,9 @@ constexpr auto java_number = sequence(
 	optional(choice('l', 'L', 'f', 'F', 'd', 'D'))
 );
 
-constexpr auto java_syntax = scope(
+constexpr auto java_syntax = choice(
 	// comments
-	c_comment,
+	highlight(Style::COMMENT, c_comment),
 	// strings and characters
 	highlight(Style::STRING, java_string),
 	highlight(Style::STRING, java_character),

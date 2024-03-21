@@ -9,9 +9,9 @@ template <class... T> constexpr auto c_keywords(T... arguments) {
 	return choice(c_keyword(arguments)...);
 }
 
-constexpr auto c_comment = scope(
-	nested_scope(Style::COMMENT, "/*", "*/"),
-	highlight(Style::COMMENT, sequence("//", repetition(but('\n'))))
+constexpr auto c_comment = choice(
+	sequence("/*", repetition(but("*/")), optional("*/")),
+	sequence("//", repetition(but('\n')))
 );
 constexpr auto c_escape = sequence('\\', choice(
 	'a', 'b', 't', 'n', 'v', 'f', 'r',
@@ -127,7 +127,7 @@ struct c_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		c_comment,
+		highlight(Style::COMMENT, c_comment),
 		// strings and characters
 		highlight(Style::STRING, c_string),
 		highlight(Style::STRING, c_character),

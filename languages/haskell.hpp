@@ -1,11 +1,18 @@
 constexpr auto haskell_identifier_char = choice(range('a', 'z'), '_', range('A', 'Z'), range('0', '9'), '\'');
 
 struct haskell_block_comment {
-	static constexpr auto expression = nested_scope(Style::COMMENT, "{-", "-}", reference<haskell_block_comment>());
+	static constexpr auto expression = sequence(
+		"{-",
+		repetition(choice(
+			reference<haskell_block_comment>(),
+			but("-}")
+		)),
+		optional("-}")
+	);
 };
-constexpr auto haskell_comment = scope(
+constexpr auto haskell_comment = choice(
 	reference<haskell_block_comment>(),
-	highlight(Style::COMMENT, sequence("--", repetition(but('\n'))))
+	sequence("--", repetition(but('\n')))
 );
 
 struct haskell_file_name {
@@ -17,7 +24,7 @@ struct haskell_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		haskell_comment,
+		highlight(Style::COMMENT, haskell_comment),
 		// keywords
 		highlight(Style::KEYWORD, c_keywords(
 			"if",

@@ -28,7 +28,7 @@ constexpr auto xml_string = choice(
 	)
 );
 
-constexpr auto xml_syntax = scope(
+constexpr auto xml_syntax = choice(
 	highlight(Style::COMMENT, xml_comment),
 	highlight(Style::KEYWORD, sequence(
 		'<',
