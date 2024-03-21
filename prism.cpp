@@ -250,18 +250,6 @@ public:
 	}
 };
 
-class Function {
-	bool (*function)(ParseContext&);
-public:
-	static constexpr bool always_succeeds() {
-		return false;
-	}
-	constexpr Function(bool (*function)(ParseContext&)): function(function) {}
-	bool parse(ParseContext& context) const {
-		return function(context);
-	}
-};
-
 template <class... T> class Sequence;
 template <> class Sequence<> {
 public:
@@ -472,9 +460,6 @@ constexpr auto get_expression(char c) {
 }
 constexpr String get_expression(const char* s) {
 	return String(s);
-}
-constexpr Function get_expression(bool (*f)(ParseContext&)) {
-	return Function(f);
 }
 constexpr auto get_expression(bool (*f)(char)) {
 	return Char(f);
