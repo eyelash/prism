@@ -219,6 +219,9 @@ template <char c> struct Char {
 	static constexpr char get() {
 		return c;
 	}
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	static bool parse(ParseContext& context) {
 		if (context.get() != c) {
 			return false;
@@ -229,6 +232,9 @@ template <char c> struct Char {
 };
 
 template <char first, char last> struct CharRange {
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	static bool parse(ParseContext& context) {
 		const char c = context.get();
 		if (!(c >= first && c <= last)) {
@@ -240,6 +246,9 @@ template <char first, char last> struct CharRange {
 };
 
 struct AnyChar {
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	static bool parse(ParseContext& context) {
 		if (context.get() == '\0') {
 			return false;
@@ -254,6 +263,9 @@ template <char... chars> struct String {
 	static const char* c_str() {
 		static constexpr char s[sizeof...(chars) + 1] = {chars..., '\0'};
 		return s;
+	}
+	static constexpr bool always_succeeds() {
+		return false;
 	}
 	static bool parse(ParseContext& context) {
 		static constexpr char string[] = {chars..., '\0'};
@@ -281,11 +293,17 @@ template <class T, T... chars> constexpr String<chars...> operator ""_s() {
 
 template <class... T> struct Seq;
 template <> struct Seq<> {
+	static constexpr bool always_succeeds() {
+		return true;
+	}
 	static bool parse(ParseContext& context) {
 		return true;
 	}
 };
 template <class T0, class... T> struct Seq<T0, T...> {
+	static constexpr bool always_succeeds() {
+		return unwrap<T0>::always_succeeds() && Seq<T...>::always_succeeds();
+	}
 	static bool parse(ParseContext& context) {
 		const auto save_point = context.save();
 		if (!unwrap<T0>::parse(context)) {
@@ -301,11 +319,17 @@ template <class T0, class... T> struct Seq<T0, T...> {
 
 template <class... T> struct Choice;
 template <> struct Choice<> {
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	static bool parse(ParseContext& context) {
 		return false;
 	}
 };
 template <class T0, class... T> struct Choice<T0, T...> {
+	static constexpr bool always_succeeds() {
+		return unwrap<T0>::always_succeeds() || Choice<T...>::always_succeeds();;
+	}
 	static bool parse(ParseContext& context) {
 		if (unwrap<T0>::parse(context)) {
 			return true;
@@ -317,6 +341,9 @@ template <class T0, class... T> struct Choice<T0, T...> {
 };
 
 template <class T> struct Repeat {
+	static constexpr bool always_succeeds() {
+		return true;
+	}
 	static bool parse(ParseContext& context) {
 		while (unwrap<T>::parse(context)) {}
 		return true;
@@ -324,6 +351,9 @@ template <class T> struct Repeat {
 };
 
 template <class T> struct Optional {
+	static constexpr bool always_succeeds() {
+		return true;
+	}
 	static bool parse(ParseContext& context) {
 		unwrap<T>::parse(context);
 		return true;
@@ -331,6 +361,9 @@ template <class T> struct Optional {
 };
 
 template <class T> struct Not {
+	static constexpr bool always_succeeds() {
+		return false;
+	}
 	static bool parse(ParseContext& context) {
 		const auto save_point = context.save();
 		if (unwrap<T>::parse(context)) {
@@ -344,6 +377,9 @@ template <class T> struct Not {
 };
 
 template <int style, class T> struct Highlight {
+	static constexpr bool always_succeeds() {
+		return unwrap<T>::always_succeeds();
+	}
 	static bool parse(ParseContext& context) {
 		const int old_style = context.change_style(style);
 		const bool result = unwrap<T>::parse(context);
