@@ -222,7 +222,7 @@ template <char c> struct Char {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		if (context.get() != c) {
 			return false;
 		}
@@ -235,7 +235,7 @@ template <char first, char last> struct CharRange {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		const char c = context.get();
 		if (!(c >= first && c <= last)) {
 			return false;
@@ -249,7 +249,7 @@ struct AnyChar {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		if (context.get() == '\0') {
 			return false;
 		}
@@ -267,7 +267,7 @@ template <char... chars> struct String {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		static constexpr char string[] = {chars..., '\0'};
 		if (*string == '\0') {
 			return true;
@@ -296,7 +296,7 @@ template <> struct Seq<> {
 	static constexpr bool always_succeeds() {
 		return true;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		return true;
 	}
 };
@@ -304,12 +304,16 @@ template <class T0, class... T> struct Seq<T0, T...> {
 	static constexpr bool always_succeeds() {
 		return unwrap<T0>::always_succeeds() && Seq<T...>::always_succeeds();
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
+		constexpr bool seq_can_checkpoint = can_checkpoint && Seq<T...>::always_succeeds();
 		const auto save_point = context.save();
-		if (!unwrap<T0>::parse(context)) {
+		if (!unwrap<T0>::template parse<seq_can_checkpoint>(context)) {
 			return false;
 		}
-		if (!Seq<T...>::parse(context)) {
+		if (seq_can_checkpoint && !context.is_before_window_end()) {
+			return true;
+		}
+		if (!Seq<T...>::template parse<seq_can_checkpoint>(context)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -322,7 +326,7 @@ template <> struct Choice<> {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		return false;
 	}
 };
@@ -330,12 +334,12 @@ template <class T0, class... T> struct Choice<T0, T...> {
 	static constexpr bool always_succeeds() {
 		return unwrap<T0>::always_succeeds() || Choice<T...>::always_succeeds();;
 	}
-	static bool parse(ParseContext& context) {
-		if (unwrap<T0>::parse(context)) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
+		if (unwrap<T0>::template parse<can_checkpoint>(context)) {
 			return true;
 		}
 		else {
-			return Choice<T...>::parse(context);
+			return Choice<T...>::template parse<can_checkpoint>(context);
 		}
 	}
 };
@@ -344,8 +348,21 @@ template <class T> struct Repeat {
 	static constexpr bool always_succeeds() {
 		return true;
 	}
-	static bool parse(ParseContext& context) {
-		while (unwrap<T>::parse(context)) {}
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
+		if constexpr (can_checkpoint) {
+			auto scope = context.enter_scope();
+			context.skip_to_checkpoint();
+			while (context.is_before_window_end()) {
+				context.add_checkpoint();
+				if (!unwrap<T>::template parse<can_checkpoint>(context)) {
+					break;
+				}
+			}
+			context.leave_scope(scope);
+		}
+		else {
+			while (unwrap<T>::template parse<can_checkpoint>(context)) {}
+		}
 		return true;
 	}
 };
@@ -354,8 +371,8 @@ template <class T> struct Optional {
 	static constexpr bool always_succeeds() {
 		return true;
 	}
-	static bool parse(ParseContext& context) {
-		unwrap<T>::parse(context);
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
+		unwrap<T>::template parse<can_checkpoint>(context);
 		return true;
 	}
 };
@@ -364,9 +381,9 @@ template <class T> struct Not {
 	static constexpr bool always_succeeds() {
 		return false;
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		const auto save_point = context.save();
-		if (unwrap<T>::parse(context)) {
+		if (unwrap<T>::template parse<false>(context)) {
 			context.restore(save_point);
 			return false;
 		}
@@ -380,32 +397,11 @@ template <int style, class T> struct Highlight {
 	static constexpr bool always_succeeds() {
 		return unwrap<T>::always_succeeds();
 	}
-	static bool parse(ParseContext& context) {
+	template <bool can_checkpoint> static bool parse(ParseContext& context) {
 		const int old_style = context.change_style(style);
-		const bool result = unwrap<T>::parse(context);
+		const bool result = unwrap<T>::template parse<can_checkpoint>(context);
 		context.change_style(old_style);
 		return result;
-	}
-};
-
-class RootScope {
-	bool (*f)(ParseContext&);
-	bool parse_single(ParseContext& context) const {
-		if (f(context)) {
-			return true;
-		}
-		else {
-			return AnyChar::parse(context);
-		}
-	}
-public:
-	constexpr RootScope(bool (*f)(ParseContext&)): f(f) {}
-	bool parse(ParseContext& context) const {
-		context.skip_to_checkpoint();
-		while (context.is_before_window_end() && parse_single(context)) {
-			context.add_checkpoint();
-		}
-		return true;
 	}
 };
 
@@ -440,8 +436,14 @@ struct Language {
 	bool (*parse)(ParseContext&);
 };
 
+#define root_scope(...) repeat(choice(__VA_ARGS__, any_char))
+
+template <class T> bool parse_function(ParseContext& context) {
+	return unwrap<T>::template parse<true>(context);
+}
+
 template <class file_name_parser, class language_parser> constexpr Language language(const char* name) {
-	return {name, unwrap<file_name_parser>::parse, unwrap<language_parser>::parse};
+	return {name, parse_function<file_name_parser>, parse_function<root_scope(language_parser)>};
 }
 
 constexpr Language languages[] = {
@@ -464,7 +466,7 @@ const Language* prism::get_language(const char* file_name) {
 std::vector<Span> prism::highlight(const Language* language, const Input* input, Cache& cache, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
 	ParseContext context(input, cache, spans, window_start, window_end);
-	RootScope(language->parse).parse(context);
+	language->parse(context);
 	context.change_style(Style::DEFAULT);
 	return spans;
 }
