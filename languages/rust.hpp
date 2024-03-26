@@ -32,6 +32,57 @@ constexpr auto rust_character = sequence(
 	'\''
 );
 constexpr auto rust_lifetime = sequence('\'', c_identifier);
+constexpr auto rust_number = sequence(
+	choice(
+		// hexadecimal
+		sequence(
+			"0x",
+			zero_or_more('_'),
+			hex_digit,
+			zero_or_more(choice(hex_digit, '_'))
+		),
+		// binary
+		sequence(
+			"0b",
+			zero_or_more('_'),
+			range('0', '1'),
+			zero_or_more(choice(range('0', '1'), '_'))
+		),
+		// octal
+		sequence(
+			"0o",
+			zero_or_more('_'),
+			range('0', '7'),
+			zero_or_more(choice(range('0', '7'), '_'))
+		),
+		// decimal
+		sequence(
+			range('0', '9'),
+			zero_or_more(choice(range('0', '9'), '_')),
+			optional(sequence(
+				'.',
+				range('0', '9'),
+				zero_or_more(choice(range('0', '9'), '_'))
+			)),
+			// exponent
+			optional(sequence(
+				choice('e', 'E'),
+				optional(choice('+', '-')),
+				zero_or_more('_'),
+				range('0', '9'),
+				zero_or_more(choice(range('0', '9'), '_'))
+			))
+		)
+	),
+	// suffix
+	optional(choice(
+		sequence(
+			choice('u', 'i'),
+			choice("8", "16", "32", "64", "128", "size")
+		),
+		sequence('f', choice("32", "64"))
+	))
+);
 
 struct rust_file_name {
 	static constexpr auto expression = ends_with(".rs");
@@ -46,6 +97,8 @@ struct rust_language {
 		// strings and characters
 		highlight(Style::STRING, rust_string),
 		highlight(Style::STRING, rust_character),
+		// numbers
+		highlight(Style::LITERAL, rust_number),
 		// lifetimes
 		highlight(Style::LITERAL, rust_lifetime),
 		// literals
