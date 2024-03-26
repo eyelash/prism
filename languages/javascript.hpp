@@ -1,3 +1,42 @@
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
+
+struct javascript_language;
+
+constexpr auto javascript_escape = sequence('\\', choice(
+	'b', 't', 'n', 'v', 'f', 'r',
+	'"', '$', '\'', '\\', '`',
+	'0',
+	'\n',
+	sequence('x', repetition<2, 2>(hex_digit)),
+	sequence('u', repetition<4, 4>(hex_digit)),
+	sequence("u{", one_or_more(hex_digit), '}')
+));
+constexpr auto javascript_template_string = sequence(
+	'`',
+	repetition(choice(
+		highlight(Style::ESCAPE, javascript_escape),
+		highlight(Style::DEFAULT, sequence(
+			"${",
+			repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
+			optional('}')
+		)),
+		but('`')
+	)),
+	optional('`')
+);
+constexpr auto javascript_string = choice(
+	sequence(
+		'"',
+		repetition(choice(highlight(Style::ESCAPE, javascript_escape), but(choice('"', '\n')))),
+		optional('"')
+	),
+	sequence(
+		'\'',
+		repetition(choice(highlight(Style::ESCAPE, javascript_escape), but(choice('\'', '\n')))),
+		optional('\'')
+	),
+	javascript_template_string
+);
 constexpr auto javascript_number = sequence(
 	choice(
 		// hexadecimal
@@ -39,6 +78,8 @@ constexpr auto javascript_number = sequence(
 constexpr auto javascript_syntax = choice(
 	// comments
 	highlight(Style::COMMENT, c_comment),
+	// strings
+	highlight(Style::STRING, javascript_string),
 	// numbers
 	highlight(Style::LITERAL, javascript_number),
 	// literals
@@ -78,6 +119,11 @@ constexpr auto javascript_syntax = choice(
 		"import",
 		"export"
 	)),
+	sequence(
+		'{',
+		repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
+		optional('}')
+	),
 	// identifiers
 	java_identifier
 );
