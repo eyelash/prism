@@ -43,31 +43,31 @@ constexpr auto javascript_number = sequence(
 		sequence(
 			'0',
 			choice('x', 'X'),
-			one_or_more(hex_digit)
+			java_hex_digits
 		),
 		// binary
 		sequence(
 			'0',
 			choice('b', 'B'),
-			one_or_more(range('0', '1'))
+			java_binary_digits
 		),
 		// octal
 		sequence(
 			'0',
 			choice('o', 'O'),
-			one_or_more(range('0', '7'))
+			java_octal_digits
 		),
 		// decimal
 		sequence(
 			choice(
-				sequence(one_or_more(range('0', '9')), optional('.'), zero_or_more(range('0', '9'))),
-				sequence('.', one_or_more(range('0', '9')))
+				sequence(java_digits, optional('.'), optional(java_digits)),
+				sequence('.', java_digits)
 			),
 			// exponent
 			optional(sequence(
 				choice('e', 'E'),
 				optional(choice('+', '-')),
-				one_or_more(range('0', '9'))
+				java_digits
 			))
 		)
 	),
