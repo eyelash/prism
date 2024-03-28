@@ -31,7 +31,7 @@ struct json_file_name {
 };
 
 struct json_language {
-	static constexpr auto expression = scope(
+	static constexpr auto expression = choice(
 		// strings
 		highlight(Style::STRING, json_string),
 		// numbers

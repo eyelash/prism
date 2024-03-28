@@ -75,63 +75,61 @@ constexpr auto javascript_number = sequence(
 	optional('n')
 );
 
-constexpr auto javascript_syntax = choice(
-	// comments
-	highlight(Style::COMMENT, c_comment),
-	// strings
-	highlight(Style::STRING, javascript_string),
-	// numbers
-	highlight(Style::LITERAL, javascript_number),
-	// literals
-	highlight(Style::LITERAL, java_keywords(
-		"null",
-		"false",
-		"true"
-	)),
-	// keywords
-	highlight(Style::KEYWORD, java_keywords(
-		"function",
-		"this",
-		"var",
-		"let",
-		"const",
-		"if",
-		"else",
-		"for",
-		"in",
-		"of",
-		"while",
-		"do",
-		"switch",
-		"case",
-		"default",
-		"break",
-		"continue",
-		"try",
-		"catch",
-		"finally",
-		"throw",
-		"return",
-		"new",
-		"class",
-		"extends",
-		"static",
-		"import",
-		"export"
-	)),
-	sequence(
-		'{',
-		repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
-		optional('}')
-	),
-	// identifiers
-	java_identifier
-);
-
 struct javascript_file_name {
 	static constexpr auto expression = ends_with(".js");
 };
 
 struct javascript_language {
-	static constexpr auto expression = javascript_syntax;
+	static constexpr auto expression = choice(
+		// comments
+		highlight(Style::COMMENT, c_comment),
+		// strings
+		highlight(Style::STRING, javascript_string),
+		// numbers
+		highlight(Style::LITERAL, javascript_number),
+		// literals
+		highlight(Style::LITERAL, java_keywords(
+			"null",
+			"false",
+			"true"
+		)),
+		// keywords
+		highlight(Style::KEYWORD, java_keywords(
+			"function",
+			"this",
+			"var",
+			"let",
+			"const",
+			"if",
+			"else",
+			"for",
+			"in",
+			"of",
+			"while",
+			"do",
+			"switch",
+			"case",
+			"default",
+			"break",
+			"continue",
+			"try",
+			"catch",
+			"finally",
+			"throw",
+			"return",
+			"new",
+			"class",
+			"extends",
+			"static",
+			"import",
+			"export"
+		)),
+		sequence(
+			'{',
+			repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
+			optional('}')
+		),
+		// identifiers
+		java_identifier
+	);
 };

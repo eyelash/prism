@@ -28,30 +28,28 @@ constexpr auto xml_string = choice(
 	)
 );
 
-constexpr auto xml_syntax = choice(
-	highlight(Style::COMMENT, xml_comment),
-	highlight(Style::KEYWORD, sequence(
-		'<',
-		xml_name,
-		xml_white_space,
-		highlight(Style::TYPE, repetition(sequence(
-			xml_name,
-			xml_white_space,
-			'=',
-			xml_white_space,
-			highlight(Style::STRING, xml_string),
-			xml_white_space
-		))),
-		optional(choice('>', "/>"))
-	)),
-	highlight(Style::KEYWORD, sequence("</", xml_name, xml_white_space, optional('>'))),
-	highlight(Style::ESCAPE, xml_escape)
-);
-
 struct xml_file_name {
 	static constexpr auto expression = ends_with(choice(".xml", ".svg"));
 };
 
 struct xml_language {
-	static constexpr auto expression = xml_syntax;
+	static constexpr auto expression = choice(
+		highlight(Style::COMMENT, xml_comment),
+		highlight(Style::KEYWORD, sequence(
+			'<',
+			xml_name,
+			xml_white_space,
+			highlight(Style::TYPE, repetition(sequence(
+				xml_name,
+				xml_white_space,
+				'=',
+				xml_white_space,
+				highlight(Style::STRING, xml_string),
+				xml_white_space
+			))),
+			optional(choice('>', "/>"))
+		)),
+		highlight(Style::KEYWORD, sequence("</", xml_name, xml_white_space, optional('>'))),
+		highlight(Style::ESCAPE, xml_escape)
+	);
 };

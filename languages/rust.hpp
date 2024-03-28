@@ -91,7 +91,7 @@ struct rust_file_name {
 };
 
 struct rust_language {
-	static constexpr auto expression = scope(
+	static constexpr auto expression = choice(
 		// whitespace
 		c_whitespace_char,
 		// comments

@@ -150,7 +150,7 @@ public:
 	constexpr Range operator &(const Range& range) const {
 		return Range(std::max(start, range.start), std::min(end, range.end));
 	}
-	constexpr operator bool() const {
+	explicit constexpr operator bool() const {
 		return start < end;
 	}
 };

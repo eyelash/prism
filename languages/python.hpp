@@ -30,7 +30,7 @@ struct python_file_name {
 };
 
 struct python_language {
-	static constexpr auto expression = scope(
+	static constexpr auto expression = choice(
 		// whitespace
 		c_whitespace_char,
 		// comments

@@ -83,7 +83,7 @@ struct haskell_file_name {
 };
 
 struct haskell_language {
-	static constexpr auto expression = scope(
+	static constexpr auto expression = choice(
 		// whitespace
 		c_whitespace_char,
 		// comments

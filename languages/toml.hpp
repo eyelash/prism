@@ -69,7 +69,7 @@ struct toml_file_name {
 };
 
 struct toml_language {
-	static constexpr auto expression = scope(
+	static constexpr auto expression = choice(
 		// comments
 		highlight(Style::COMMENT, toml_comment),
 		// strings

@@ -94,76 +94,74 @@ constexpr auto java_number = sequence(
 	optional(choice('l', 'L', 'f', 'F', 'd', 'D'))
 );
 
-constexpr auto java_syntax = choice(
-	// comments
-	highlight(Style::COMMENT, c_comment),
-	// strings and characters
-	highlight(Style::STRING, java_string),
-	highlight(Style::STRING, java_character),
-	// numbers
-	highlight(Style::LITERAL, java_number),
-	// literals
-	highlight(Style::LITERAL, java_keywords(
-		"null",
-		"false",
-		"true"
-	)),
-	// keywords
-	highlight(Style::KEYWORD, java_keywords(
-		"this",
-		"var",
-		"if",
-		"else",
-		"for",
-		"while",
-		"do",
-		"switch",
-		"case",
-		"default",
-		"break",
-		"continue",
-		"try",
-		"catch",
-		"finally",
-		"throw",
-		"return",
-		"new",
-		"class",
-		"record",
-		"interface",
-		"enum",
-		"extends",
-		"implements",
-		"abstract",
-		"final",
-		"public",
-		"protected",
-		"private",
-		"static",
-		"throws",
-		"import",
-		"package"
-	)),
-	// types
-	highlight(Style::TYPE, java_keywords(
-		"void",
-		"boolean",
-		"char",
-		"byte",
-		"short",
-		"int",
-		"long",
-		"float",
-		"double"
-	)),
-	// identifiers
-	java_identifier
-);
-
 struct java_file_name {
 	static constexpr auto expression = ends_with(".java");
 };
 
 struct java_language {
-	static constexpr auto expression = java_syntax;
+	static constexpr auto expression = choice(
+		// comments
+		highlight(Style::COMMENT, c_comment),
+		// strings and characters
+		highlight(Style::STRING, java_string),
+		highlight(Style::STRING, java_character),
+		// numbers
+		highlight(Style::LITERAL, java_number),
+		// literals
+		highlight(Style::LITERAL, java_keywords(
+			"null",
+			"false",
+			"true"
+		)),
+		// keywords
+		highlight(Style::KEYWORD, java_keywords(
+			"this",
+			"var",
+			"if",
+			"else",
+			"for",
+			"while",
+			"do",
+			"switch",
+			"case",
+			"default",
+			"break",
+			"continue",
+			"try",
+			"catch",
+			"finally",
+			"throw",
+			"return",
+			"new",
+			"class",
+			"record",
+			"interface",
+			"enum",
+			"extends",
+			"implements",
+			"abstract",
+			"final",
+			"public",
+			"protected",
+			"private",
+			"static",
+			"throws",
+			"import",
+			"package"
+		)),
+		// types
+		highlight(Style::TYPE, java_keywords(
+			"void",
+			"boolean",
+			"char",
+			"byte",
+			"short",
+			"int",
+			"long",
+			"float",
+			"double"
+		)),
+		// identifiers
+		java_identifier
+	);
 };
