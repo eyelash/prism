@@ -18,6 +18,29 @@ constexpr auto haskell_comment = choice(
 	sequence("--", not_(haskell_operator_char), repetition(but('\n')))
 );
 
+constexpr auto haskell_escape = sequence('\\', choice(
+	'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '"', '\'', '&',
+	sequence('^', choice(range('A', 'Z'), '@', '[', '\\', ']', '^', '_')),
+	"NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "HT", "LF", "VT", "FF", "CR", "SO", "SI", "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US", "SP", "DEL",
+	one_or_more(range('0', '9')),
+	sequence('o', one_or_more(range('0', '7'))),
+	sequence('x', one_or_more(hex_digit))
+));
+constexpr auto haskell_string = sequence(
+	'"',
+	repetition(choice(
+		highlight(Style::ESCAPE, haskell_escape),
+		highlight(Style::ESCAPE, sequence('\\', one_or_more(c_whitespace_char), '\\')),
+		but(choice('"', '\n'))
+	)),
+	optional('"')
+);
+constexpr auto haskell_character = sequence(
+	'\'',
+	repetition(choice(highlight(Style::ESCAPE, haskell_escape), but(choice('\'', '\n')))),
+	optional('\'')
+);
+
 constexpr auto haskell_number = choice(
 	// hexadecimal
 	sequence(
@@ -65,6 +88,9 @@ struct haskell_language {
 		c_whitespace_char,
 		// comments
 		highlight(Style::COMMENT, haskell_comment),
+		// strings and characters
+		highlight(Style::STRING, haskell_string),
+		highlight(Style::STRING, haskell_character),
 		// numbers
 		highlight(Style::LITERAL, haskell_number),
 		// keywords
