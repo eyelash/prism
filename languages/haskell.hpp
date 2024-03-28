@@ -15,6 +15,14 @@ constexpr auto haskell_comment = choice(
 	sequence("--", repetition(but('\n')))
 );
 
+constexpr auto haskell_module_name = sequence(
+	highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
+	zero_or_more(sequence(
+		'.',
+		highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char)))
+	))
+);
+
 struct haskell_file_name {
 	static constexpr auto expression = ends_with(".hs");
 };
@@ -41,9 +49,21 @@ struct haskell_language {
 			"data",
 			"class",
 			"instance",
-			"module",
-			"import"
+			"module"
 		)),
+		// imports
+		sequence(
+			highlight(Style::KEYWORD, c_keyword("import")),
+			zero_or_more(' '),
+			optional(highlight(Style::KEYWORD, c_keyword("qualified"))),
+			zero_or_more(' '),
+			optional(haskell_module_name),
+			zero_or_more(' '),
+			optional(choice(
+				highlight(Style::KEYWORD, c_keyword("hiding")),
+				highlight(Style::KEYWORD, c_keyword("as"))
+			))
+		),
 		// types
 		highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
 		// identifiers
