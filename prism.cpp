@@ -563,6 +563,7 @@ constexpr auto hex_digit = choice(range('0', '9'), range('a', 'f'), range('A', '
 #include "languages/java.hpp"
 #include "languages/xml.hpp"
 #include "languages/javascript.hpp"
+#include "languages/json.hpp"
 #include "languages/python.hpp"
 #include "languages/rust.hpp"
 #include "languages/toml.hpp"
@@ -573,6 +574,7 @@ constexpr Language languages[] = {
 	language<java_file_name, java_language>("Java"),
 	language<xml_file_name, xml_language>("XML"),
 	language<javascript_file_name, javascript_language>("JavaScript"),
+	language<json_file_name, json_language>("JSON"),
 	language<python_file_name, python_language>("Python"),
 	language<rust_file_name, rust_language>("Rust"),
 	language<toml_file_name, toml_language>("TOML"),
