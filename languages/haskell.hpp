@@ -18,6 +18,35 @@ constexpr auto haskell_comment = choice(
 	sequence("--", not_(haskell_operator_char), repetition(but('\n')))
 );
 
+constexpr auto haskell_number = choice(
+	// hexadecimal
+	sequence(
+		'0',
+		choice('x', 'X'),
+		one_or_more(hex_digit)
+	),
+	// octal
+	sequence(
+		'0',
+		choice('o', 'O'),
+		one_or_more(range('0', '7'))
+	),
+	// decimal
+	sequence(
+		one_or_more(range('0', '9')),
+		optional(sequence(
+			'.',
+			one_or_more(range('0', '9'))
+		)),
+		// exponent
+		optional(sequence(
+			choice('e', 'E'),
+			optional(choice('+', '-')),
+			one_or_more(range('0', '9'))
+		))
+	)
+);
+
 constexpr auto haskell_module = sequence(
 	highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
 	zero_or_more(sequence(
@@ -36,6 +65,8 @@ struct haskell_language {
 		c_whitespace_char,
 		// comments
 		highlight(Style::COMMENT, haskell_comment),
+		// numbers
+		highlight(Style::LITERAL, haskell_number),
 		// keywords
 		highlight(Style::KEYWORD, c_keywords(
 			"if",
