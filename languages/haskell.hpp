@@ -15,7 +15,7 @@ struct haskell_block_comment {
 };
 constexpr auto haskell_comment = choice(
 	reference<haskell_block_comment>(),
-	sequence("--", not_(haskell_operator_char), repetition(but('\n')))
+	sequence(repetition<2>('-'), not_(haskell_operator_char), repetition(but('\n')))
 );
 
 constexpr auto haskell_escape = sequence('\\', choice(
