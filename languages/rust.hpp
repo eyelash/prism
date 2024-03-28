@@ -18,15 +18,17 @@ constexpr auto rust_escape = sequence('\\', choice(
 	't', 'n', 'r',
 	'"', '\'', '\\',
 	'0',
-	sequence('x', range('0', '7'), hex_digit),
+	sequence('x', repetition<2, 2>(hex_digit)),
 	sequence("u{", repetition<1, 6>(sequence(hex_digit, zero_or_more('_'))), '}')
 ));
 constexpr auto rust_string = sequence(
+	optional(choice('b', 'c')),
 	'"',
 	repetition(choice(highlight(Style::ESCAPE, rust_escape), but('"'))),
 	optional('"')
 );
 constexpr auto rust_character = sequence(
+	optional('b'),
 	'\'',
 	choice(highlight(Style::ESCAPE, rust_escape), but(choice('\'', '\n'))),
 	'\''
@@ -127,6 +129,7 @@ struct rust_language {
 			"type",
 			"impl",
 			"where",
+			"dyn",
 			"pub",
 			"use",
 			"mod"
