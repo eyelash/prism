@@ -434,15 +434,6 @@ public:
 	}
 };
 
-template <class F> class Recursive {
-	F f;
-public:
-	constexpr Recursive(F f): f(f) {}
-	bool parse(ParseContext& context) const {
-		return f(*this).parse(context);
-	}
-};
-
 template <class T> class Reference {
 public:
 	static constexpr bool always_succeeds() {
@@ -517,9 +508,6 @@ constexpr auto end() {
 template <class T> constexpr auto ends_with(T t) {
 	const auto e = sequence(t, end());
 	return sequence(repetition(but(e)), e);
-}
-template <class F> constexpr auto recursive(F f) {
-	return Recursive(f);
 }
 template <class T> constexpr auto reference() {
 	return Reference<T>();
