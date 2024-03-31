@@ -159,6 +159,12 @@ public:
 	}
 };
 
+enum class Result: unsigned char {
+	FAILURE,
+	SUCCESS,
+	PARTIAL_SUCCESS
+};
+
 class ParseContext {
 	InputAdapter input;
 	Cache::Node* node;
@@ -184,11 +190,12 @@ public:
 		input.set_position(checkpoint.pos);
 		max_pos = checkpoint.max_pos;
 	}
-	Cache::Node* enter_scope() {
-		return std::exchange(node, node->get_child(input.get_position(), std::max(max_pos, input.get_position())));
-	}
-	void leave_scope(Cache::Node* old_node) {
+	template <class F> Result add_scope(F f) {
+		Cache::Node* old_node = node;
+		node = node->get_child(input.get_position(), std::max(max_pos, input.get_position()));
+		const Result result = f();
 		node = old_node;
+		return result;
 	}
 	bool is_before_window_end() const {
 		return input.get_position() < window.end;
@@ -205,12 +212,6 @@ public:
 		input.set_position(save_point.pos);
 		spans.restore(save_point.spans);
 	}
-};
-
-enum class Result: unsigned char {
-	FAILURE,
-	SUCCESS,
-	PARTIAL_SUCCESS
 };
 
 template <class F> class Char {
@@ -351,26 +352,25 @@ public:
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
 		if constexpr (can_checkpoint) {
-			auto scope = context.enter_scope();
-			context.skip_to_checkpoint();
-			for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
-				const Result result = t.template parse<can_checkpoint>(context);
-				if (result == Result::FAILURE) {
-					break;
+			return context.add_scope([&]() {
+				context.skip_to_checkpoint();
+				for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
+					const Result result = t.template parse<can_checkpoint>(context);
+					if (result == Result::FAILURE) {
+						return Result::SUCCESS;
+					}
+					if (result == Result::PARTIAL_SUCCESS || !context.is_before_window_end()) {
+						return Result::PARTIAL_SUCCESS;
+					}
+					context.add_checkpoint();
 				}
-				if (result == Result::PARTIAL_SUCCESS || !context.is_before_window_end()) {
-					context.leave_scope(scope);
-					return Result::PARTIAL_SUCCESS;
-				}
-				context.add_checkpoint();
-			}
-			context.leave_scope(scope);
-			return Result::SUCCESS;
+				return Result::SUCCESS;
+			});
 		}
 		else {
 			for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
 				if (t.template parse<false>(context) == Result::FAILURE) {
-					break;
+					return Result::SUCCESS;
 				}
 			}
 			return Result::SUCCESS;
