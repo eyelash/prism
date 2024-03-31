@@ -276,9 +276,8 @@ public:
 	}
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
 	template <bool can_checkpoint> Result parse(ParseContext& context) const {
-		constexpr bool sequence_can_checkpoint = can_checkpoint && Sequence<T...>::always_succeeds();
 		const auto save_point = context.save();
-		Result result = t0.template parse<sequence_can_checkpoint>(context);
+		Result result = t0.template parse<can_checkpoint && Sequence<T...>::always_succeeds()>(context);
 		if (result != Result::SUCCESS) {
 			return result;
 		}
@@ -328,15 +327,20 @@ public:
 	}
 	constexpr Repetition(T t): t(t) {}
 	template <bool can_checkpoint> Result parse(ParseContext& context) const {
-		if constexpr (MIN_REPETITIONS > 0) {
-			constexpr bool sequence_can_checkpoint = can_checkpoint && T::always_succeeds();
+		if constexpr (MIN_REPETITIONS == 1) {
+			const Result result = t.template parse<can_checkpoint>(context);
+			if (result != Result::SUCCESS) {
+				return result;
+			}
+		}
+		else if constexpr (MIN_REPETITIONS > 1) {
 			const auto save_point = context.save();
-			Result result = t.template parse<sequence_can_checkpoint>(context);
+			Result result = t.template parse<can_checkpoint && T::always_succeeds()>(context);
 			if (result != Result::SUCCESS) {
 				return result;
 			}
 			for (std::size_t i = 1; i < MIN_REPETITIONS; ++i) {
-				result = t.template parse<sequence_can_checkpoint>(context);
+				result = t.template parse<can_checkpoint && T::always_succeeds()>(context);
 				if (result != Result::SUCCESS) {
 					if (result == Result::FAILURE) {
 						context.restore(save_point);
