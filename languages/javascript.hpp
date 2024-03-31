@@ -95,8 +95,8 @@ struct javascript_language {
 		)),
 		// keywords
 		highlight(Style::KEYWORD, java_keywords(
-			"function",
 			"this",
+			"new",
 			"var",
 			"let",
 			"const",
@@ -117,7 +117,7 @@ struct javascript_language {
 			"finally",
 			"throw",
 			"return",
-			"new",
+			"function",
 			"class",
 			"extends",
 			"static",

@@ -1,5 +1,4 @@
 #include "prism.hpp"
-#include <memory>
 
 #include "themes/one_dark.hpp"
 #include "themes/monokai.hpp"
@@ -182,8 +181,9 @@ public:
 	int change_style(int new_style) {
 		return spans.change_style(input.get_position(), new_style, window);
 	}
-	void add_checkpoint() {
+	bool add_checkpoint() {
 		node->add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
+		return input.get_position() >= window.end;
 	}
 	void skip_to_checkpoint() {
 		const auto checkpoint = node->find_checkpoint(window.start);
@@ -196,9 +196,6 @@ public:
 		const Result result = f();
 		node = old_node;
 		return result;
-	}
-	bool is_before_window_end() const {
-		return input.get_position() < window.end;
 	}
 	struct SavePoint {
 		std::size_t pos;
@@ -278,18 +275,19 @@ public:
 	constexpr Sequence(T0 t0, T... t): t0(t0), t(t...) {}
 	template <bool can_checkpoint> Result parse(ParseContext& context) const {
 		const auto save_point = context.save();
-		Result result = t0.template parse<can_checkpoint && Sequence<T...>::always_succeeds()>(context);
+		const Result result = t0.template parse<can_checkpoint && Sequence<T...>::always_succeeds()>(context);
 		if (result != Result::SUCCESS) {
 			return result;
 		}
-		result = t.template parse<can_checkpoint>(context);
-		if (result == Result::FAILURE) {
-			context.restore(save_point);
+		{
+			const Result result = t.template parse<can_checkpoint>(context);
+			if (result == Result::FAILURE) {
+				context.restore(save_point);
+			}
+			return result;
 		}
-		return result;
 	}
 };
-template <class... T> Sequence(T...) -> Sequence<T...>;
 
 template <class... T> class Choice;
 template <> class Choice<> {
@@ -318,7 +316,6 @@ public:
 		return t.template parse<can_checkpoint>(context);
 	}
 };
-template <class... T> Choice(T...) -> Choice<T...>;
 
 template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> class Repetition {
 	T t;
@@ -336,12 +333,8 @@ public:
 		}
 		else if constexpr (MIN_REPETITIONS > 1) {
 			const auto save_point = context.save();
-			Result result = t.template parse<can_checkpoint && T::always_succeeds()>(context);
-			if (result != Result::SUCCESS) {
-				return result;
-			}
-			for (std::size_t i = 1; i < MIN_REPETITIONS; ++i) {
-				result = t.template parse<can_checkpoint && T::always_succeeds()>(context);
+			for (std::size_t i = 0; i < MIN_REPETITIONS; ++i) {
+				const Result result = t.template parse<can_checkpoint && T::always_succeeds()>(context);
 				if (result != Result::SUCCESS) {
 					if (result == Result::FAILURE) {
 						context.restore(save_point);
@@ -356,21 +349,21 @@ public:
 				context.skip_to_checkpoint();
 				for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
 					const Result result = t.template parse<can_checkpoint>(context);
-					if (result == Result::FAILURE) {
-						return Result::SUCCESS;
+					if (result != Result::SUCCESS) {
+						return result == Result::FAILURE ? Result::SUCCESS : result;
 					}
-					if (result == Result::PARTIAL_SUCCESS || !context.is_before_window_end()) {
+					if (context.add_checkpoint()) {
 						return Result::PARTIAL_SUCCESS;
 					}
-					context.add_checkpoint();
 				}
 				return Result::SUCCESS;
 			});
 		}
 		else {
 			for (std::size_t i = MIN_REPETITIONS; MAX_REPETITIONS == 0 || i < MAX_REPETITIONS; ++i) {
-				if (t.template parse<false>(context) == Result::FAILURE) {
-					return Result::SUCCESS;
+				const Result result = t.template parse<can_checkpoint>(context);
+				if (result != Result::SUCCESS) {
+					return result == Result::FAILURE ? Result::SUCCESS : result;
 				}
 			}
 			return Result::SUCCESS;
@@ -480,17 +473,29 @@ constexpr auto any_char() {
 		return c != '\0';
 	});
 }
+template <class... T> constexpr Sequence<T...> sequence_(T... t) {
+	return Sequence<T...>(t...);
+}
 template <class... T> constexpr auto sequence(T... t) {
-	return Sequence(get_expression(t)...);
+	return sequence_(get_expression(t)...);
+}
+template <class... T> constexpr Choice<T...> choice_(T... t) {
+	return Choice<T...>(t...);
 }
 template <class... T> constexpr auto choice(T... t) {
-	return Choice(get_expression(t)...);
+	return choice_(get_expression(t)...);
 }
 template <std::size_t MIN_REPETITIONS, std::size_t MAX_REPETITIONS, class T> constexpr Repetition<MIN_REPETITIONS, MAX_REPETITIONS, T> repetition_(T t) {
 	return Repetition<MIN_REPETITIONS, MAX_REPETITIONS, T>(t);
 }
 template <std::size_t MIN_REPETITIONS = 0, std::size_t MAX_REPETITIONS = 0, class T> constexpr auto repetition(T t) {
 	return repetition_<MIN_REPETITIONS, MAX_REPETITIONS>(get_expression(t));
+}
+template <class T> constexpr auto zero_or_more(T t) {
+	return repetition<0>(t);
+}
+template <class T> constexpr auto one_or_more(T t) {
+	return repetition<1>(t);
 }
 template <class T> constexpr auto optional(T t) {
 	return Optional(get_expression(t));
@@ -503,12 +508,6 @@ template <class T> constexpr auto not_(T t) {
 }
 template <class T> constexpr auto highlight(int style, T t) {
 	return Highlight(get_expression(t), style);
-}
-template <class T> constexpr auto zero_or_more(T t) {
-	return repetition(t);
-}
-template <class T> constexpr auto one_or_more(T t) {
-	return repetition<1>(t);
 }
 template <class T> constexpr auto but(T t) {
 	return sequence(not_(t), any_char());
@@ -541,7 +540,7 @@ template <class T> constexpr auto root_scope(T t) {
 struct Language {
 	const char* name;
 	bool (*parse_file_name)(ParseContext&);
-	bool (*parse)(ParseContext&);
+	void (*parse)(ParseContext&);
 };
 
 template <class parse_file_name, class parse> constexpr Language language(const char* name) {
@@ -551,7 +550,7 @@ template <class parse_file_name, class parse> constexpr Language language(const 
 			return reference<parse_file_name>().template parse<false>(context) == Result::SUCCESS;
 		},
 		[](ParseContext& context) {
-			return root_scope(reference<parse>()).template parse<true>(context) != Result::FAILURE;
+			root_scope(reference<parse>()).template parse<true>(context);
 		}
 	};
 }

@@ -116,6 +116,7 @@ struct java_language {
 		// keywords
 		highlight(Style::KEYWORD, java_keywords(
 			"this",
+			"new",
 			"var",
 			"if",
 			"else",
@@ -132,7 +133,6 @@ struct java_language {
 			"finally",
 			"throw",
 			"return",
-			"new",
 			"class",
 			"record",
 			"interface",
