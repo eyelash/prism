@@ -24,6 +24,43 @@ constexpr auto python_string = choice(
 		optional('\'')
 	)
 );
+constexpr auto python_digits = sequence(
+	range('0', '9'),
+	zero_or_more(sequence(optional('_'), range('0', '9')))
+);
+constexpr auto python_number = choice(
+	// hexadecimal
+	sequence(
+		'0',
+		choice('x', 'X'),
+		one_or_more(sequence(optional('_'), hex_digit))
+	),
+	// binary
+	sequence(
+		'0',
+		choice('b', 'B'),
+		one_or_more(sequence(optional('_'), range('0', '1')))
+	),
+	// octal
+	sequence(
+		'0',
+		choice('o', 'O'),
+		one_or_more(sequence(optional('_'), range('0', '7')))
+	),
+	// decimal
+	sequence(
+		choice(
+			sequence(python_digits, optional('.'), optional(python_digits)),
+			sequence('.', python_digits)
+		),
+		// exponent
+		optional(sequence(
+			choice('e', 'E'),
+			optional(choice('+', '-')),
+			python_digits
+		))
+	)
+);
 
 struct python_file_name {
 	static constexpr auto expression = ends_with(".py");
@@ -37,6 +74,8 @@ struct python_language {
 		highlight(Style::COMMENT, python_comment),
 		// strings
 		highlight(Style::STRING, python_string),
+		// numbers
+		highlight(Style::LITERAL, python_number),
 		// literals
 		highlight(Style::LITERAL, c_keywords(
 			"None",
