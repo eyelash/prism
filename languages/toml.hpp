@@ -31,35 +31,42 @@ constexpr auto toml_string = choice(
 	)
 );
 
+constexpr auto toml_digits = sequence(
+	range('0', '9'),
+	zero_or_more(sequence(optional('_'), range('0', '9')))
+);
 constexpr auto toml_number = choice(
 	// hexadecimal
 	sequence(
 		"0x",
-		java_hex_digits
+		hex_digit,
+		zero_or_more(sequence(optional('_'), hex_digit))
 	),
 	// binary
 	sequence(
 		"0b",
-		java_binary_digits
+		range('0', '1'),
+		zero_or_more(sequence(optional('_'), range('0', '1')))
 	),
 	// octal
 	sequence(
 		"0o",
-		java_octal_digits
+		range('0', '7'),
+		zero_or_more(sequence(optional('_'), range('0', '7')))
 	),
 	// decimal
 	sequence(
 		optional(choice('+', '-')),
-		java_digits,
+		toml_digits,
 		optional(sequence(
 			'.',
-			java_digits
+			toml_digits
 		)),
 		// exponent
 		optional(sequence(
 			choice('e', 'E'),
 			optional(choice('+', '-')),
-			java_digits
+			toml_digits
 		))
 	)
 );

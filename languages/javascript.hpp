@@ -37,37 +37,45 @@ constexpr auto javascript_string = choice(
 	),
 	javascript_template_string
 );
+
+constexpr auto javascript_digits = sequence(
+	range('0', '9'),
+	zero_or_more(sequence(optional('_'), range('0', '9')))
+);
 constexpr auto javascript_number = sequence(
 	choice(
 		// hexadecimal
 		sequence(
 			'0',
 			choice('x', 'X'),
-			java_hex_digits
+			hex_digit,
+			zero_or_more(sequence(optional('_'), hex_digit))
 		),
 		// binary
 		sequence(
 			'0',
 			choice('b', 'B'),
-			java_binary_digits
+			range('0', '1'),
+			zero_or_more(sequence(optional('_'), range('0', '1')))
 		),
 		// octal
 		sequence(
 			'0',
 			choice('o', 'O'),
-			java_octal_digits
+			range('0', '7'),
+			zero_or_more(sequence(optional('_'), range('0', '7')))
 		),
 		// decimal
 		sequence(
 			choice(
-				sequence(java_digits, optional('.'), optional(java_digits)),
-				sequence('.', java_digits)
+				sequence(javascript_digits, optional('.'), optional(javascript_digits)),
+				sequence('.', javascript_digits)
 			),
 			// exponent
 			optional(sequence(
 				choice('e', 'E'),
 				optional(choice('+', '-')),
-				java_digits
+				javascript_digits
 			))
 		)
 	),
