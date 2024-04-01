@@ -7,7 +7,7 @@ constexpr auto json_escape = sequence('\\', choice(
 ));
 constexpr auto json_string = sequence(
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, json_escape), but(choice('"', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, json_escape), any_char_but(choice('"', '\n')))),
 	optional('"')
 );
 

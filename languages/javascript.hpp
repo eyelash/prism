@@ -20,19 +20,19 @@ constexpr auto javascript_template_string = sequence(
 			repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
 			optional('}')
 		)),
-		but('`')
+		any_char_but('`')
 	)),
 	optional('`')
 );
 constexpr auto javascript_string = choice(
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, javascript_escape), but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, javascript_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, javascript_escape), but(choice('\'', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, javascript_escape), any_char_but(choice('\'', '\n')))),
 		optional('\'')
 	),
 	javascript_template_string

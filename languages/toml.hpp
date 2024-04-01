@@ -1,6 +1,6 @@
 // https://toml.io/en/v1.0.0
 
-constexpr auto toml_comment = sequence('#', repetition(but('\n')));
+constexpr auto toml_comment = sequence('#', repetition(any_char_but('\n')));
 
 constexpr auto toml_escape = sequence('\\', choice(
 	'b', 't', 'n', 'f', 'r',
@@ -11,22 +11,22 @@ constexpr auto toml_escape = sequence('\\', choice(
 constexpr auto toml_string = choice(
 	sequence(
 		"\"\"\"",
-		repetition(choice(highlight(Style::ESCAPE, toml_escape), but("\"\"\""))),
+		repetition(choice(highlight(Style::ESCAPE, toml_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		"'''",
-		repetition(but("'''")),
+		repetition(any_char_but("'''")),
 		optional("'''")
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, toml_escape), but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, toml_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(but(choice('\'', '\n'))),
+		repetition(any_char_but(choice('\'', '\n'))),
 		optional('\'')
 	)
 );

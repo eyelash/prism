@@ -8,14 +8,14 @@ struct haskell_block_comment {
 		"{-",
 		repetition(choice(
 			reference<haskell_block_comment>(),
-			but("-}")
+			any_char_but("-}")
 		)),
 		optional("-}")
 	);
 };
 constexpr auto haskell_comment = choice(
 	reference<haskell_block_comment>(),
-	sequence(repetition<2>('-'), not_(haskell_operator_char), repetition(but('\n')))
+	sequence(repetition<2>('-'), not_(haskell_operator_char), repetition(any_char_but('\n')))
 );
 
 constexpr auto haskell_escape = sequence('\\', choice(
@@ -31,13 +31,13 @@ constexpr auto haskell_string = sequence(
 	repetition(choice(
 		highlight(Style::ESCAPE, haskell_escape),
 		highlight(Style::ESCAPE, sequence('\\', one_or_more(c_whitespace_char), '\\')),
-		but(choice('"', '\n'))
+		any_char_but(choice('"', '\n'))
 	)),
 	optional('"')
 );
 constexpr auto haskell_character = sequence(
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, haskell_escape), but(choice('\'', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, haskell_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 

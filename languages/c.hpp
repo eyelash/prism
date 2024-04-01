@@ -10,8 +10,8 @@ template <class... T> constexpr auto c_keywords(T... arguments) {
 }
 
 constexpr auto c_comment = choice(
-	sequence("/*", repetition(but("*/")), optional("*/")),
-	sequence("//", repetition(but('\n')))
+	sequence("/*", repetition(any_char_but("*/")), optional("*/")),
+	sequence("//", repetition(any_char_but('\n')))
 );
 constexpr auto c_escape = sequence('\\', choice(
 	'a', 'b', 't', 'n', 'v', 'f', 'r',
@@ -24,13 +24,13 @@ constexpr auto c_escape = sequence('\\', choice(
 constexpr auto c_string = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, c_escape), but(choice('"', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, c_escape), any_char_but(choice('"', '\n')))),
 	optional('"')
 );
 constexpr auto c_character = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, c_escape), but(choice('\'', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, c_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 constexpr auto c_digits = sequence(
@@ -95,12 +95,12 @@ constexpr auto c_preprocessor = sequence(
 			optional(highlight(Style::STRING, choice(
 				sequence(
 					'<',
-					repetition(but(choice('>', '\n'))),
+					repetition(any_char_but(choice('>', '\n'))),
 					optional('>')
 				),
 				sequence(
 					'"',
-					repetition(but(choice('"', '\n'))),
+					repetition(any_char_but(choice('"', '\n'))),
 					optional('"')
 				)
 			)))

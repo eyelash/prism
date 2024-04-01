@@ -496,7 +496,7 @@ template <class T> constexpr auto not_(T t) {
 template <class T> constexpr auto highlight(int style, T t) {
 	return Highlight(get_expression(t), style);
 }
-template <class T> constexpr auto but(T t) {
+template <class T> constexpr auto any_char_but(T t) {
 	return sequence(not_(t), any_char());
 }
 constexpr auto end() {
@@ -504,7 +504,7 @@ constexpr auto end() {
 }
 template <class T> constexpr auto ends_with(T t) {
 	const auto e = sequence(t, end());
-	return sequence(repetition(but(e)), e);
+	return sequence(repetition(any_char_but(e)), e);
 }
 template <class T> constexpr auto reference() {
 	return Reference<T>();

@@ -5,14 +5,14 @@ struct rust_block_comment {
 		"/*",
 		repetition(choice(
 			reference<rust_block_comment>(),
-			but("*/")
+			any_char_but("*/")
 		)),
 		optional("*/")
 	);
 };
 constexpr auto rust_comment = choice(
 	reference<rust_block_comment>(),
-	sequence("//", repetition(but('\n')))
+	sequence("//", repetition(any_char_but('\n')))
 );
 constexpr auto rust_escape = sequence('\\', choice(
 	't', 'n', 'r',
@@ -24,13 +24,13 @@ constexpr auto rust_escape = sequence('\\', choice(
 constexpr auto rust_string = sequence(
 	optional(choice('b', 'c')),
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, rust_escape), but('"'))),
+	repetition(choice(highlight(Style::ESCAPE, rust_escape), any_char_but('"'))),
 	optional('"')
 );
 constexpr auto rust_character = sequence(
 	optional('b'),
 	'\'',
-	choice(highlight(Style::ESCAPE, rust_escape), but(choice('\'', '\n'))),
+	choice(highlight(Style::ESCAPE, rust_escape), any_char_but(choice('\'', '\n'))),
 	'\''
 );
 constexpr auto rust_lifetime = sequence('\'', c_identifier);

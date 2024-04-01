@@ -1,26 +1,26 @@
 // https://docs.python.org/3/reference/lexical_analysis.html
 
-constexpr auto python_comment = sequence('#', repetition(but('\n')));
+constexpr auto python_comment = sequence('#', repetition(any_char_but('\n')));
 constexpr auto python_escape = sequence('\\', any_char());
 constexpr auto python_string = choice(
 	sequence(
 		"\"\"\"",
-		repetition(choice(highlight(Style::ESCAPE, python_escape), but("\"\"\""))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		"'''",
-		repetition(choice(highlight(Style::ESCAPE, python_escape), but("'''"))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but("'''"))),
 		optional("'''")
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, python_escape), but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, python_escape), but(choice('\'', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but(choice('\'', '\n')))),
 		optional('\'')
 	)
 );

@@ -21,18 +21,18 @@ constexpr auto java_string = choice(
 		"\"\"\"",
 		zero_or_more(' '),
 		'\n',
-		repetition(choice(highlight(Style::ESCAPE, java_escape), but("\"\"\""))),
+		repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, java_escape), but(choice('"', '\n')))),
+		repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	)
 );
 constexpr auto java_character = sequence(
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, java_escape), but(choice('\'', '\n')))),
+	repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 

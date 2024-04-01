@@ -1,6 +1,6 @@
 // https://www.w3.org/TR/REC-xml/
 
-constexpr auto xml_comment = sequence("<!--", repetition(but("-->")), optional("-->"));
+constexpr auto xml_comment = sequence("<!--", repetition(any_char_but("-->")), optional("-->"));
 
 constexpr auto xml_white_space = zero_or_more(choice(' ', '\t', '\n', '\r'));
 constexpr auto xml_name_start_char = choice(range('a', 'z'), range('A', 'Z'), ':', '_');
@@ -18,12 +18,12 @@ constexpr auto xml_escape = sequence(
 constexpr auto xml_string = choice(
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, xml_escape), but(choice('"', '<')))),
+		repetition(choice(highlight(Style::ESCAPE, xml_escape), any_char_but(choice('"', '<')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, xml_escape), but(choice('\'', '<')))),
+		repetition(choice(highlight(Style::ESCAPE, xml_escape), any_char_but(choice('\'', '<')))),
 		optional('\'')
 	)
 );
