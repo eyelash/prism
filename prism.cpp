@@ -344,7 +344,7 @@ public:
 			}
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
-		if constexpr (can_checkpoint) {
+		if constexpr (can_checkpoint && MAX_REPETITIONS != 1) {
 			return context.add_scope([&]() {
 				context.skip_to_checkpoint();
 				for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
@@ -368,19 +368,6 @@ public:
 			}
 			return Result::SUCCESS;
 		}
-	}
-};
-
-template <class T> class Optional {
-	T t;
-public:
-	static constexpr bool always_succeeds() {
-		return true;
-	}
-	constexpr Optional(T t): t(t) {}
-	template <bool can_checkpoint> Result parse(ParseContext& context) const {
-		const Result result = t.template parse<can_checkpoint>(context);
-		return result != Result::FAILURE ? result : Result::SUCCESS;
 	}
 };
 
@@ -498,7 +485,7 @@ template <class T> constexpr auto one_or_more(T t) {
 	return repetition<1>(t);
 }
 template <class T> constexpr auto optional(T t) {
-	return Optional(get_expression(t));
+	return repetition<0, 1>(t);
 }
 template <class T> constexpr auto and_(T t) {
 	return And(get_expression(t));
