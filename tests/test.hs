@@ -6,6 +6,11 @@ line
 comment
 -}
 
+import Control.Monad (forM_)
+
+(<--) = (+)
+(-->) = (+)
+
 strings :: IO ()
 strings = do
     return "hello"
@@ -33,7 +38,7 @@ controlFlow b =
     if b then
         return ()
     else
-        return ()
+        forM_ [0..9] (\i -> return ())
 
 main :: IO ()
 main = do

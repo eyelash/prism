@@ -1,4 +1,4 @@
-#include "prism.hpp"
+#include <prism.hpp>
 #include <vector>
 #include <cmath>
 #include <fstream>

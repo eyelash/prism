@@ -34,6 +34,11 @@ constexpr auto rust_character = sequence(
 	'\''
 );
 constexpr auto rust_lifetime = sequence('\'', c_identifier);
+
+constexpr auto rust_digits = sequence(
+	range('0', '9'),
+	zero_or_more(choice(range('0', '9'), '_'))
+);
 constexpr auto rust_number = sequence(
 	choice(
 		// hexadecimal
@@ -59,20 +64,17 @@ constexpr auto rust_number = sequence(
 		),
 		// decimal
 		sequence(
-			range('0', '9'),
-			zero_or_more(choice(range('0', '9'), '_')),
+			rust_digits,
 			optional(sequence(
 				'.',
-				range('0', '9'),
-				zero_or_more(choice(range('0', '9'), '_'))
+				rust_digits
 			)),
 			// exponent
 			optional(sequence(
 				choice('e', 'E'),
 				optional(choice('+', '-')),
 				zero_or_more('_'),
-				range('0', '9'),
-				zero_or_more(choice(range('0', '9'), '_'))
+				rust_digits
 			))
 		)
 	),

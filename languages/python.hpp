@@ -99,7 +99,6 @@ struct python_language {
 			"elif",
 			"else",
 			"for",
-			"in",
 			"while",
 			"break",
 			"continue",

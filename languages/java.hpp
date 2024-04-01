@@ -38,21 +38,16 @@ constexpr auto java_character = sequence(
 
 constexpr auto java_digits = sequence(
 	range('0', '9'),
-	repetition(sequence(zero_or_more('_'), range('0', '9')))
+	zero_or_more(sequence(zero_or_more('_'), range('0', '9')))
 );
 constexpr auto java_hex_digits = sequence(
 	hex_digit,
-	repetition(sequence(zero_or_more('_'), hex_digit))
+	zero_or_more(sequence(zero_or_more('_'), hex_digit))
 );
 constexpr auto java_binary_digits = sequence(
 	range('0', '1'),
-	repetition(sequence(zero_or_more('_'), range('0', '1')))
+	zero_or_more(sequence(zero_or_more('_'), range('0', '1')))
 );
-constexpr auto java_octal_digits = sequence(
-	range('0', '7'),
-	repetition(sequence(zero_or_more('_'), range('0', '7')))
-);
-
 constexpr auto java_number = sequence(
 	choice(
 		// hexadecimal

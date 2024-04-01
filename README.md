@@ -12,8 +12,8 @@ int main() {
     const Language* language = prism::get_language("file.c");
     Cache cache;
     auto spans = prism::highlight(language, &input, cache, 0, input.size());
-    
-    const std::vector<Span> expected = {
+
+    std::vector<Span> expected = {
         {0, 3, Style::TYPE},
         {13, 19, Style::KEYWORD},
         {20, 22, Style::LITERAL},

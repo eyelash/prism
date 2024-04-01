@@ -33,6 +33,7 @@ constexpr auto c_character = sequence(
 	repetition(choice(highlight(Style::ESCAPE, c_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
+
 constexpr auto c_digits = sequence(
 	range('0', '9'),
 	zero_or_more(sequence(optional('\''), range('0', '9')))
