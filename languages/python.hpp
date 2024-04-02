@@ -102,6 +102,10 @@ struct python_language {
 			"while",
 			"break",
 			"continue",
+			"try",
+			"except",
+			"finally",
+			"raise",
 			"return",
 			"import"
 		)),
