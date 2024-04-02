@@ -211,8 +211,9 @@ public:
 		Node(std::size_t start_pos, std::size_t start_max_pos);
 		std::size_t get_last_checkpoint() const;
 		void add_checkpoint(std::size_t pos, std::size_t max_pos);
-		Checkpoint find_checkpoint(std::size_t pos) const;
-		Node* get_child(std::size_t pos, std::size_t max_pos);
+		const Checkpoint* find_checkpoint(std::size_t pos) const;
+		Node* find_child(std::size_t pos);
+		Node* add_child(std::size_t pos, std::size_t max_pos);
 		void invalidate(std::size_t pos);
 	};
 private:

@@ -61,28 +61,27 @@ std::size_t Cache::Node::get_last_checkpoint() const {
 	return checkpoints.back().pos;
 }
 void Cache::Node::add_checkpoint(std::size_t pos, std::size_t max_pos) {
-	if (pos >= get_last_checkpoint() + 16) {
-		checkpoints.push_back({pos, max_pos});
-	}
+	checkpoints.push_back({pos, max_pos});
 }
-Cache::Checkpoint Cache::Node::find_checkpoint(std::size_t pos) const {
+const Cache::Checkpoint* Cache::Node::find_checkpoint(std::size_t pos) const {
 	auto iter = std::lower_bound(checkpoints.rbegin(), checkpoints.rend(), pos, [](const Checkpoint& checkpoint, std::size_t pos) {
 		return checkpoint.pos > pos;
 	});
 	if (iter != checkpoints.rend()) {
-		return *iter;
+		return &*iter;
 	}
-	else {
-		return {start_pos, start_max_pos};
-	}
+	return nullptr;
 }
-Cache::Node* Cache::Node::get_child(std::size_t pos, std::size_t max_pos) {
+Cache::Node* Cache::Node::find_child(std::size_t pos) {
 	auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
 	});
 	if (iter != children.end()) {
 		return &*iter;
 	}
+	return nullptr;
+}
+Cache::Node* Cache::Node::add_child(std::size_t pos, std::size_t max_pos) {
 	children.emplace_back(pos, max_pos);
 	return &children.back();
 }
@@ -158,6 +157,45 @@ public:
 	}
 };
 
+class Scope {
+	Scope* parent_scope;
+	std::size_t pos;
+	std::size_t max_pos;
+	Cache::Node* node;
+	std::size_t get_last_checkpoint() const {
+		return node ? node->get_last_checkpoint() : pos;
+	}
+	Cache::Node* find_child(std::size_t pos) const {
+		return node ? node->find_child(pos) : nullptr;
+	}
+	Cache::Node* ensure_node() {
+		if (node == nullptr) {
+			node = parent_scope->ensure_node()->add_child(pos, max_pos);
+		}
+		return node;
+	}
+public:
+	Scope(Cache::Node* node): parent_scope(nullptr), pos(0), max_pos(0), node(node) {}
+	Scope(Scope* parent_scope, std::size_t pos, std::size_t max_pos): parent_scope(parent_scope), pos(pos), max_pos(max_pos), node(parent_scope->find_child(pos)) {}
+	Scope* get_parent_scope() const {
+		return parent_scope;
+	}
+	void add_checkpoint(std::size_t pos, std::size_t max_pos) {
+		if (pos >= get_last_checkpoint() + 16) {
+			ensure_node()->add_checkpoint(pos, max_pos);
+		}
+	}
+	Cache::Checkpoint find_checkpoint(std::size_t pos) {
+		if (node) {
+			const Cache::Checkpoint* checkpoint = node->find_checkpoint(pos);
+			if (checkpoint) {
+				return *checkpoint;
+			}
+		}
+		return {this->pos, this->max_pos};
+	}
+};
+
 enum class Result: unsigned char {
 	FAILURE,
 	SUCCESS,
@@ -166,12 +204,12 @@ enum class Result: unsigned char {
 
 class ParseContext {
 	InputAdapter input;
-	Cache::Node* node;
 	Range window;
 	std::size_t max_pos;
 	Spans spans;
+	Scope* current_scope;
 public:
-	ParseContext(const Input* input, Cache& cache, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), node(cache.get_root_node()), window(window_start, window_end), max_pos(0), spans(spans) {}
+	ParseContext(const Input* input, std::vector<Span>& spans, std::size_t window_start, std::size_t window_end): input(input), window(window_start, window_end), max_pos(0), spans(spans), current_scope(nullptr) {}
 	char get() const {
 		return input.get();
 	}
@@ -182,19 +220,25 @@ public:
 		return spans.change_style(input.get_position(), new_style, window);
 	}
 	bool add_checkpoint() {
-		node->add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
+		current_scope->add_checkpoint(input.get_position(), std::max(max_pos, input.get_position()));
 		return input.get_position() >= window.end;
 	}
 	void skip_to_checkpoint() {
-		const auto checkpoint = node->find_checkpoint(window.start);
+		const auto checkpoint = current_scope->find_checkpoint(window.start);
 		input.set_position(checkpoint.pos);
 		max_pos = checkpoint.max_pos;
 	}
+	template <class F> void add_root_scope(Cache& cache, F f) {
+		Scope root_scope(cache.get_root_node());
+		current_scope = &root_scope;
+		f();
+		current_scope = nullptr;
+	}
 	template <class F> Result add_scope(F f) {
-		Cache::Node* old_node = node;
-		node = node->get_child(input.get_position(), std::max(max_pos, input.get_position()));
+		Scope scope(current_scope, input.get_position(), std::max(max_pos, input.get_position()));
+		current_scope = &scope;
 		const Result result = f();
-		node = old_node;
+		current_scope = scope.get_parent_scope();
 		return result;
 	}
 	struct SavePoint {
@@ -568,9 +612,8 @@ constexpr Language languages[] = {
 
 const Language* prism::get_language(const char* file_name) {
 	StringInput input(file_name);
-	Cache cache;
 	std::vector<Span> spans;
-	ParseContext context(&input, cache, spans, 0, input.size());
+	ParseContext context(&input, spans, 0, input.size());
 	for (const Language& language: languages) {
 		if (language.parse_file_name(context)) {
 			return &language;
@@ -581,8 +624,10 @@ const Language* prism::get_language(const char* file_name) {
 
 std::vector<Span> prism::highlight(const Language* language, const Input* input, Cache& cache, std::size_t window_start, std::size_t window_end) {
 	std::vector<Span> spans;
-	ParseContext context(input, cache, spans, window_start, window_end);
-	language->parse(context);
+	ParseContext context(input, spans, window_start, window_end);
+	context.add_root_scope(cache, [&]() {
+		language->parse(context);
+	});
 	context.change_style(Style::DEFAULT);
 	return spans;
 }
