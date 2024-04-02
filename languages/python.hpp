@@ -107,6 +107,9 @@ struct python_language {
 			"finally",
 			"raise",
 			"return",
+			"yield",
+			"await",
+			"async",
 			"import"
 		)),
 		// operators

@@ -124,6 +124,8 @@ struct rust_language {
 			"break",
 			"continue",
 			"return",
+			"await",
+			"async",
 			"fn",
 			"struct",
 			"enum",
