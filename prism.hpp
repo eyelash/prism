@@ -110,9 +110,10 @@ public:
 	bool italic;
 	constexpr Style(const Color& color, bool bold, bool italic): color(color), bold(bold), italic(italic) {}
 	constexpr Style(const Color& color, int attributes = 0): color(color), bold(attributes & BOLD), italic(attributes & ITALIC) {}
-	static constexpr int INHERIT = 0;
-	static constexpr int WORD = 1;
-	static constexpr int DEFAULT = 2;
+	static constexpr int INHERIT = -1;
+	static constexpr int DEFAULT = 0;
+	static constexpr int LINE_NUMBER = 1;
+	static constexpr int LINE_NUMBER_ACTIVE = 2;
 	static constexpr int COMMENT = 3;
 	static constexpr int KEYWORD = 4;
 	static constexpr int OPERATOR = 5;
@@ -129,11 +130,9 @@ struct Theme {
 	Color background_active;
 	Color selection;
 	Color cursor;
-	Color number_background;
-	Color number_background_active;
-	Style number;
-	Style number_active;
-	Style styles[9];
+	Color gutter_background;
+	Color gutter_background_active;
+	Style styles[11];
 };
 
 struct Language;
