@@ -163,6 +163,9 @@ public:
 	constexpr bool operator ==(const Span& span) const {
 		return start == span.start && end == span.end && style == span.style;
 	}
+	constexpr bool operator <(const Span& span) const {
+		return std::tie(start, end, style) < std::tie(span.start, span.end, span.style);
+	}
 	/*friend std::ostream& operator <<(std::ostream& os, const Span& span) {
 		return os << "(" << span.start << ", " << span.end << ") -> " << span.style;
 	}*/
