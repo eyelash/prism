@@ -14,8 +14,8 @@ constexpr auto javascript_escape = sequence('\\', choice(
 constexpr auto javascript_template_string = sequence(
 	'`',
 	repetition(choice(
-		highlight(Style::ESCAPE, javascript_escape),
-		highlight(Style::DEFAULT, sequence(
+		highlight<Style::ESCAPE>(javascript_escape),
+		highlight<Style::DEFAULT>(sequence(
 			"${",
 			repetition(sequence(not_('}'), choice(reference<javascript_language>(), any_char()))),
 			optional('}')
@@ -27,12 +27,12 @@ constexpr auto javascript_template_string = sequence(
 constexpr auto javascript_string = choice(
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, javascript_escape), any_char_but(choice('"', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(javascript_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, javascript_escape), any_char_but(choice('\'', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(javascript_escape), any_char_but(choice('\'', '\n')))),
 		optional('\'')
 	),
 	javascript_template_string
@@ -90,19 +90,19 @@ struct javascript_file_name {
 struct javascript_language {
 	static constexpr auto expression = choice(
 		// comments
-		highlight(Style::COMMENT, c_comment),
+		highlight<Style::COMMENT>(c_comment),
 		// strings
-		highlight(Style::STRING, javascript_string),
+		highlight<Style::STRING>(javascript_string),
 		// numbers
-		highlight(Style::LITERAL, javascript_number),
+		highlight<Style::LITERAL>(javascript_number),
 		// literals
-		highlight(Style::LITERAL, java_keywords(
+		highlight<Style::LITERAL>(java_keywords(
 			"null",
 			"false",
 			"true"
 		)),
 		// keywords
-		highlight(Style::KEYWORD, java_keywords(
+		highlight<Style::KEYWORD>(java_keywords(
 			"this",
 			"new",
 			"var",

@@ -5,22 +5,22 @@ constexpr auto python_escape = sequence('\\', any_char());
 constexpr auto python_string = choice(
 	sequence(
 		"\"\"\"",
-		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but("\"\"\""))),
+		repetition(choice(highlight<Style::ESCAPE>(python_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		"'''",
-		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but("'''"))),
+		repetition(choice(highlight<Style::ESCAPE>(python_escape), any_char_but("'''"))),
 		optional("'''")
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but(choice('"', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(python_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, python_escape), any_char_but(choice('\'', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(python_escape), any_char_but(choice('\'', '\n')))),
 		optional('\'')
 	)
 );
@@ -71,29 +71,29 @@ struct python_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		highlight(Style::COMMENT, python_comment),
+		highlight<Style::COMMENT>(python_comment),
 		// strings
-		highlight(Style::STRING, python_string),
+		highlight<Style::STRING>(python_string),
 		// numbers
-		highlight(Style::LITERAL, python_number),
+		highlight<Style::LITERAL>(python_number),
 		// literals
-		highlight(Style::LITERAL, c_keywords(
+		highlight<Style::LITERAL>(c_keywords(
 			"None",
 			"False",
 			"True"
 		)),
 		// keywords
 		sequence(
-			highlight(Style::KEYWORD, c_keyword("def")),
+			highlight<Style::KEYWORD>(c_keyword("def")),
 			zero_or_more(' '),
-			optional(highlight(Style::FUNCTION, c_identifier))
+			optional(highlight<Style::FUNCTION>(c_identifier))
 		),
 		sequence(
-			highlight(Style::KEYWORD, c_keyword("class")),
+			highlight<Style::KEYWORD>(c_keyword("class")),
 			zero_or_more(' '),
-			optional(highlight(Style::TYPE, c_identifier))
+			optional(highlight<Style::TYPE>(c_identifier))
 		),
-		highlight(Style::KEYWORD, c_keywords(
+		highlight<Style::KEYWORD>(c_keywords(
 			"lambda",
 			"if",
 			"elif",
@@ -113,7 +113,7 @@ struct python_language {
 			"import"
 		)),
 		// operators
-		highlight(Style::OPERATOR, c_keywords(
+		highlight<Style::OPERATOR>(c_keywords(
 			"and",
 			"or",
 			"not",

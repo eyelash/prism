@@ -24,13 +24,13 @@ constexpr auto rust_escape = sequence('\\', choice(
 constexpr auto rust_string = sequence(
 	optional(choice('b', 'c')),
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, rust_escape), any_char_but('"'))),
+	repetition(choice(highlight<Style::ESCAPE>(rust_escape), any_char_but('"'))),
 	optional('"')
 );
 constexpr auto rust_character = sequence(
 	optional('b'),
 	'\'',
-	choice(highlight(Style::ESCAPE, rust_escape), any_char_but(choice('\'', '\n'))),
+	choice(highlight<Style::ESCAPE>(rust_escape), any_char_but(choice('\'', '\n'))),
 	'\''
 );
 constexpr auto rust_lifetime = sequence('\'', c_identifier);
@@ -97,21 +97,21 @@ struct rust_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		highlight(Style::COMMENT, rust_comment),
+		highlight<Style::COMMENT>(rust_comment),
 		// strings and characters
-		highlight(Style::STRING, rust_string),
-		highlight(Style::STRING, rust_character),
+		highlight<Style::STRING>(rust_string),
+		highlight<Style::STRING>(rust_character),
 		// numbers
-		highlight(Style::LITERAL, rust_number),
+		highlight<Style::LITERAL>(rust_number),
 		// lifetimes
-		highlight(Style::LITERAL, rust_lifetime),
+		highlight<Style::LITERAL>(rust_lifetime),
 		// literals
-		highlight(Style::LITERAL, c_keywords(
+		highlight<Style::LITERAL>(c_keywords(
 			"false",
 			"true"
 		)),
 		// keywords
-		highlight(Style::KEYWORD, c_keywords(
+		highlight<Style::KEYWORD>(c_keywords(
 			"let",
 			"mut",
 			"if",
@@ -139,7 +139,7 @@ struct rust_language {
 			"mod"
 		)),
 		// types
-		highlight(Style::TYPE, c_keywords(
+		highlight<Style::TYPE>(c_keywords(
 			"bool",
 			"char",
 			sequence(

@@ -18,12 +18,12 @@ constexpr auto xml_escape = sequence(
 constexpr auto xml_string = choice(
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, xml_escape), any_char_but(choice('"', '<')))),
+		repetition(choice(highlight<Style::ESCAPE>(xml_escape), any_char_but(choice('"', '<')))),
 		optional('"')
 	),
 	sequence(
 		'\'',
-		repetition(choice(highlight(Style::ESCAPE, xml_escape), any_char_but(choice('\'', '<')))),
+		repetition(choice(highlight<Style::ESCAPE>(xml_escape), any_char_but(choice('\'', '<')))),
 		optional('\'')
 	)
 );
@@ -34,22 +34,22 @@ struct xml_file_name {
 
 struct xml_language {
 	static constexpr auto expression = choice(
-		highlight(Style::COMMENT, xml_comment),
-		highlight(Style::KEYWORD, sequence(
+		highlight<Style::COMMENT>(xml_comment),
+		highlight<Style::KEYWORD>(sequence(
 			'<',
 			xml_name,
 			xml_white_space,
-			highlight(Style::TYPE, repetition(sequence(
+			highlight<Style::TYPE>(repetition(sequence(
 				xml_name,
 				xml_white_space,
 				'=',
 				xml_white_space,
-				highlight(Style::STRING, xml_string),
+				highlight<Style::STRING>(xml_string),
 				xml_white_space
 			))),
 			optional(choice('>', "/>"))
 		)),
-		highlight(Style::KEYWORD, sequence("</", xml_name, xml_white_space, optional('>'))),
-		highlight(Style::ESCAPE, xml_escape)
+		highlight<Style::KEYWORD>(sequence("</", xml_name, xml_white_space, optional('>'))),
+		highlight<Style::ESCAPE>(xml_escape)
 	);
 };

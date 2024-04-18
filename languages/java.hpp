@@ -21,18 +21,18 @@ constexpr auto java_string = choice(
 		"\"\"\"",
 		zero_or_more(' '),
 		'\n',
-		repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but("\"\"\""))),
+		repetition(choice(highlight<Style::ESCAPE>(java_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but(choice('"', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(java_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	)
 );
 constexpr auto java_character = sequence(
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, java_escape), any_char_but(choice('\'', '\n')))),
+	repetition(choice(highlight<Style::ESCAPE>(java_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 
@@ -96,20 +96,20 @@ struct java_file_name {
 struct java_language {
 	static constexpr auto expression = choice(
 		// comments
-		highlight(Style::COMMENT, c_comment),
+		highlight<Style::COMMENT>(c_comment),
 		// strings and characters
-		highlight(Style::STRING, java_string),
-		highlight(Style::STRING, java_character),
+		highlight<Style::STRING>(java_string),
+		highlight<Style::STRING>(java_character),
 		// numbers
-		highlight(Style::LITERAL, java_number),
+		highlight<Style::LITERAL>(java_number),
 		// literals
-		highlight(Style::LITERAL, java_keywords(
+		highlight<Style::LITERAL>(java_keywords(
 			"null",
 			"false",
 			"true"
 		)),
 		// keywords
-		highlight(Style::KEYWORD, java_keywords(
+		highlight<Style::KEYWORD>(java_keywords(
 			"this",
 			"new",
 			"var",
@@ -145,7 +145,7 @@ struct java_language {
 			"package"
 		)),
 		// types
-		highlight(Style::TYPE, java_keywords(
+		highlight<Style::TYPE>(java_keywords(
 			"void",
 			"boolean",
 			"char",

@@ -7,7 +7,7 @@ constexpr auto json_escape = sequence('\\', choice(
 ));
 constexpr auto json_string = sequence(
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, json_escape), any_char_but(choice('"', '\n')))),
+	repetition(choice(highlight<Style::ESCAPE>(json_escape), any_char_but(choice('"', '\n')))),
 	optional('"')
 );
 
@@ -33,11 +33,11 @@ struct json_file_name {
 struct json_language {
 	static constexpr auto expression = choice(
 		// strings
-		highlight(Style::STRING, json_string),
+		highlight<Style::STRING>(json_string),
 		// numbers
-		highlight(Style::LITERAL, json_number),
+		highlight<Style::LITERAL>(json_number),
 		// literals
-		highlight(Style::LITERAL, java_keywords(
+		highlight<Style::LITERAL>(java_keywords(
 			"null",
 			"false",
 			"true"

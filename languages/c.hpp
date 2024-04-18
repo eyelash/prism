@@ -24,13 +24,13 @@ constexpr auto c_escape = sequence('\\', choice(
 constexpr auto c_string = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'"',
-	repetition(choice(highlight(Style::ESCAPE, c_escape), any_char_but(choice('"', '\n')))),
+	repetition(choice(highlight<Style::ESCAPE>(c_escape), any_char_but(choice('"', '\n')))),
 	optional('"')
 );
 constexpr auto c_character = sequence(
 	optional(choice('L', "u8", 'u', 'U')),
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, c_escape), any_char_but(choice('\'', '\n')))),
+	repetition(choice(highlight<Style::ESCAPE>(c_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 
@@ -93,7 +93,7 @@ constexpr auto c_preprocessor = sequence(
 		sequence(
 			c_keyword("include"),
 			zero_or_more(choice(' ', '\t')),
-			optional(highlight(Style::STRING, choice(
+			optional(highlight<Style::STRING>(choice(
 				sequence(
 					'<',
 					repetition(any_char_but(choice('>', '\n'))),
@@ -128,14 +128,14 @@ struct c_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		highlight(Style::COMMENT, c_comment),
+		highlight<Style::COMMENT>(c_comment),
 		// strings and characters
-		highlight(Style::STRING, c_string),
-		highlight(Style::STRING, c_character),
+		highlight<Style::STRING>(c_string),
+		highlight<Style::STRING>(c_character),
 		// numbers
-		highlight(Style::LITERAL, c_number),
+		highlight<Style::LITERAL>(c_number),
 		// keywords
-		highlight(Style::KEYWORD, c_keywords(
+		highlight<Style::KEYWORD>(c_keywords(
 			"if",
 			"else",
 			"for",
@@ -158,7 +158,7 @@ struct c_language {
 			"inline"
 		)),
 		// types
-		highlight(Style::TYPE, c_keywords(
+		highlight<Style::TYPE>(c_keywords(
 			"void",
 			"char",
 			"short",
@@ -170,7 +170,7 @@ struct c_language {
 			"signed"
 		)),
 		// operators
-		highlight(Style::OPERATOR, c_keyword(
+		highlight<Style::OPERATOR>(c_keyword(
 			"sizeof"
 		)),
 		choice(
@@ -190,7 +190,7 @@ struct c_language {
 			'.'
 		),
 		// preprocessor
-		highlight(Style::KEYWORD, c_preprocessor),
+		highlight<Style::KEYWORD>(c_preprocessor),
 		// identifiers
 		c_identifier
 	);

@@ -29,15 +29,15 @@ constexpr auto haskell_escape = sequence('\\', choice(
 constexpr auto haskell_string = sequence(
 	'"',
 	repetition(choice(
-		highlight(Style::ESCAPE, haskell_escape),
-		highlight(Style::ESCAPE, sequence('\\', one_or_more(c_whitespace_char), '\\')),
+		highlight<Style::ESCAPE>(haskell_escape),
+		highlight<Style::ESCAPE>(sequence('\\', one_or_more(c_whitespace_char), '\\')),
 		any_char_but(choice('"', '\n'))
 	)),
 	optional('"')
 );
 constexpr auto haskell_character = sequence(
 	'\'',
-	repetition(choice(highlight(Style::ESCAPE, haskell_escape), any_char_but(choice('\'', '\n')))),
+	repetition(choice(highlight<Style::ESCAPE>(haskell_escape), any_char_but(choice('\'', '\n')))),
 	optional('\'')
 );
 
@@ -71,10 +71,10 @@ constexpr auto haskell_number = choice(
 );
 
 constexpr auto haskell_module = sequence(
-	highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
+	highlight<Style::TYPE>(sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char))),
 	zero_or_more(sequence(
 		'.',
-		highlight(Style::TYPE, sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char)))
+		highlight<Style::TYPE>(sequence(range('A', 'Z'), zero_or_more(haskell_identifier_char)))
 	))
 );
 
@@ -87,14 +87,14 @@ struct haskell_language {
 		// whitespace
 		c_whitespace_char,
 		// comments
-		highlight(Style::COMMENT, haskell_comment),
+		highlight<Style::COMMENT>(haskell_comment),
 		// strings and characters
-		highlight(Style::STRING, haskell_string),
-		highlight(Style::STRING, haskell_character),
+		highlight<Style::STRING>(haskell_string),
+		highlight<Style::STRING>(haskell_character),
 		// numbers
-		highlight(Style::LITERAL, haskell_number),
+		highlight<Style::LITERAL>(haskell_number),
 		// keywords
-		highlight(Style::KEYWORD, c_keywords(
+		highlight<Style::KEYWORD>(c_keywords(
 			"if",
 			"then",
 			"else",
@@ -113,15 +113,15 @@ struct haskell_language {
 		)),
 		// imports
 		sequence(
-			highlight(Style::KEYWORD, c_keyword("import")),
+			highlight<Style::KEYWORD>(c_keyword("import")),
 			zero_or_more(' '),
-			optional(highlight(Style::KEYWORD, c_keyword("qualified"))),
+			optional(highlight<Style::KEYWORD>(c_keyword("qualified"))),
 			zero_or_more(' '),
 			optional(haskell_module),
 			zero_or_more(' '),
 			optional(choice(
-				highlight(Style::KEYWORD, c_keyword("hiding")),
-				highlight(Style::KEYWORD, c_keyword("as"))
+				highlight<Style::KEYWORD>(c_keyword("hiding")),
+				highlight<Style::KEYWORD>(c_keyword("as"))
 			))
 		),
 		// qualified operators and identifiers
@@ -130,13 +130,13 @@ struct haskell_language {
 			optional(sequence(
 				'.',
 				choice(
-					highlight(Style::OPERATOR, one_or_more(haskell_operator_char)),
+					highlight<Style::OPERATOR>(one_or_more(haskell_operator_char)),
 					sequence(choice(range('a', 'z'), '_'), zero_or_more(haskell_identifier_char))
 				)
 			))
 		),
 		// unqualified operators and identifiers
-		highlight(Style::OPERATOR, one_or_more(haskell_operator_char)),
+		highlight<Style::OPERATOR>(one_or_more(haskell_operator_char)),
 		sequence(choice(range('a', 'z'), '_'), zero_or_more(haskell_identifier_char))
 	);
 };

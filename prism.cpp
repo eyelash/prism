@@ -453,14 +453,13 @@ public:
 	}
 };
 
-template <class T> class Highlight {
+template <int style, class T> class Highlight {
 	T t;
-	int style;
 public:
 	static constexpr bool always_succeeds() {
 		return T::always_succeeds();
 	}
-	constexpr Highlight(T t, int style): t(t), style(style) {}
+	constexpr Highlight(T t): t(t) {}
 	template <bool can_checkpoint> Result parse(ParseContext& context) const {
 		const int old_style = context.change_style(style);
 		const Result result = t.template parse<can_checkpoint>(context);
@@ -537,8 +536,11 @@ template <class T> constexpr auto and_(T t) {
 template <class T> constexpr auto not_(T t) {
 	return Not(get_expression(t));
 }
-template <class T> constexpr auto highlight(int style, T t) {
-	return Highlight(get_expression(t), style);
+template <int style, class T> constexpr Highlight<style, T> highlight_(T t) {
+	return Highlight<style, T>(t);
+}
+template <int style, class T> constexpr auto highlight(T t) {
+	return highlight_<style>(get_expression(t));
 }
 template <class T> constexpr auto any_char_but(T t) {
 	return sequence(not_(t), any_char());

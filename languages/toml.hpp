@@ -11,7 +11,7 @@ constexpr auto toml_escape = sequence('\\', choice(
 constexpr auto toml_string = choice(
 	sequence(
 		"\"\"\"",
-		repetition(choice(highlight(Style::ESCAPE, toml_escape), any_char_but("\"\"\""))),
+		repetition(choice(highlight<Style::ESCAPE>(toml_escape), any_char_but("\"\"\""))),
 		optional("\"\"\"")
 	),
 	sequence(
@@ -21,7 +21,7 @@ constexpr auto toml_string = choice(
 	),
 	sequence(
 		'"',
-		repetition(choice(highlight(Style::ESCAPE, toml_escape), any_char_but(choice('"', '\n')))),
+		repetition(choice(highlight<Style::ESCAPE>(toml_escape), any_char_but(choice('"', '\n')))),
 		optional('"')
 	),
 	sequence(
@@ -78,13 +78,13 @@ struct toml_file_name {
 struct toml_language {
 	static constexpr auto expression = choice(
 		// comments
-		highlight(Style::COMMENT, toml_comment),
+		highlight<Style::COMMENT>(toml_comment),
 		// strings
-		highlight(Style::STRING, toml_string),
+		highlight<Style::STRING>(toml_string),
 		// numbers
-		highlight(Style::LITERAL, toml_number),
+		highlight<Style::LITERAL>(toml_number),
 		// literals
-		highlight(Style::LITERAL, c_keywords(
+		highlight<Style::LITERAL>(c_keywords(
 			"false",
 			"true"
 		))
