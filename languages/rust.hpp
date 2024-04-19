@@ -1,5 +1,7 @@
 // https://doc.rust-lang.org/reference/index.html
 
+constexpr auto rust_identifier = sequence(optional("r#"), c_identifier);
+
 struct rust_block_comment {
 	static constexpr auto expression = sequence(
 		"/*",
@@ -150,6 +152,6 @@ struct rust_language {
 			"str"
 		)),
 		// identifiers
-		c_identifier
+		rust_identifier
 	);
 };
