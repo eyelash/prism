@@ -298,6 +298,29 @@ public:
 	}
 };
 
+class CaseInsensitiveString {
+	const char* string;
+	static constexpr char to_lower(char c) {
+		return c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c;
+	}
+public:
+	static constexpr bool always_succeeds() {
+		return false;
+	}
+	constexpr CaseInsensitiveString(const char* string): string(string) {}
+	template <bool can_checkpoint> Result parse(ParseContext& context) const {
+		const auto save_point = context.save();
+		for (const char* s = string; *s != '\0'; ++s) {
+			if (to_lower(context.get()) != to_lower(*s)) {
+				context.restore(save_point);
+				return Result::FAILURE;
+			}
+			context.advance();
+		}
+		return Result::SUCCESS;
+	}
+};
+
 template <class... T> class Sequence;
 template <> class Sequence<> {
 public:
@@ -502,6 +525,9 @@ constexpr auto any_char() {
 	return Char([](char c) {
 		return c != '\0';
 	});
+}
+constexpr CaseInsensitiveString case_insensitive(const char* s) {
+	return CaseInsensitiveString(s);
 }
 template <class... T> constexpr Sequence<T...> sequence_(T... t) {
 	return Sequence<T...>(t...);
