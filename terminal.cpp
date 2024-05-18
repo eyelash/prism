@@ -4,6 +4,32 @@
 #include <fstream>
 #include <iostream>
 
+class FileInput final: public Input {
+	std::vector<char> data_;
+public:
+	template <class I> FileInput(I first, I last): data_(first, last) {}
+	char operator [](std::size_t i) const {
+		return data_[i];
+	}
+	const char* data() const {
+		return data_.data();
+	}
+	std::size_t size() const {
+		return data_.size();
+	}
+	std::pair<Chunk, std::size_t> get_chunk(std::size_t pos) const override {
+		return {{nullptr, data(), size()}, 0};
+	}
+	Chunk get_next_chunk(const void* chunk) const override {
+		return {nullptr, "", 0};
+	}
+};
+
+static FileInput read_file(const char* path) {
+	std::ifstream file(path);
+	return FileInput(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+}
+
 static void set_background_color(const Color& color) {
 	std::cout << "\e[48;2;"
 		<< std::round(color.r * 255) << ";"
@@ -32,49 +58,42 @@ static const char* get_file_name(const char* path) {
 	return file_name;
 }
 
-static std::vector<char> read_file(const char* path) {
-	std::ifstream file(path);
-	return std::vector<char>(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-}
-
-template <class T> static void print(const T& file, const std::vector<Span>& spans, const Theme& theme, std::size_t window_start, std::size_t window_end) {
+static void print(const FileInput& input, const std::vector<Span>& spans, const Theme& theme, std::size_t window_start, std::size_t window_end) {
 	std::size_t i = window_start;
 	for (const Span& span: spans) {
 		if (span.start > i) {
 			apply_style(theme.styles[0]);
-			std::cout.write(file.data() + i, span.start - i);
+			std::cout.write(input.data() + i, span.start - i);
 		}
 		apply_style(theme.styles[span.style - Style::DEFAULT]);
-		std::cout.write(file.data() + span.start, span.end - span.start);
+		std::cout.write(input.data() + span.start, span.end - span.start);
 		i = span.end;
 	}
 	if (window_end > i) {
 		apply_style(theme.styles[0]);
-		std::cout.write(file.data() + i, window_end - i);
+		std::cout.write(input.data() + i, window_end - i);
 	}
 }
 
 static void highlight(const char* path, const Language* language, const Theme& theme) {
-	const auto file = read_file(path);
-	StringInput input(file.data(), file.size());
+	FileInput input = read_file(path);
 	Cache cache;
-	std::vector<Span> spans = prism::highlight(language, &input, cache, 0, file.size());
 	set_background_color(theme.background);
 	std::cout << '\n';
-	print(file, spans, theme, 0, file.size());
+	std::vector<Span> spans = prism::highlight(language, &input, cache, 0, input.size());
+	print(input, spans, theme, 0, input.size());
 	clear_style();
 	std::cout << '\n';
 }
 
 static void highlight_incremental(const char* path, const Language* language, const Theme& theme) {
-	const auto file = read_file(path);
-	StringInput input(file.data(), file.size());
+	FileInput input = read_file(path);
 	Cache cache;
 	set_background_color(theme.background);
 	std::cout << '\n';
-	for (std::size_t i = 0; i < file.size(); i += 1000) {
-		std::vector<Span> spans = prism::highlight(language, &input, cache, i, std::min(i + 1000, file.size()));
-		print(file, spans, theme, i, std::min(i + 1000, file.size()));
+	for (std::size_t i = 0; i < input.size(); i += 1000) {
+		std::vector<Span> spans = prism::highlight(language, &input, cache, i, std::min(i + 1000, input.size()));
+		print(input, spans, theme, i, std::min(i + 1000, input.size()));
 	}
 	clear_style();
 	std::cout << '\n';
