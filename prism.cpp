@@ -76,7 +76,7 @@ Cache::Node* Cache::Node::find_child(std::size_t pos) {
 	auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
 	});
-	if (iter != children.end()) {
+	if (iter != children.end() && iter->start_pos == pos) {
 		return &*iter;
 	}
 	return nullptr;
