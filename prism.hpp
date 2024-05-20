@@ -206,16 +206,17 @@ public:
 		std::size_t max_pos;
 	};
 	struct Node {
+		const void* expression;
 		std::size_t start_pos;
 		std::size_t start_max_pos;
 		std::vector<Checkpoint> checkpoints;
 		std::vector<Node> children;
-		Node(std::size_t start_pos, std::size_t start_max_pos);
+		Node(const void* expression, std::size_t start_pos, std::size_t start_max_pos);
 		std::size_t get_last_checkpoint() const;
 		void add_checkpoint(std::size_t pos, std::size_t max_pos);
 		const Checkpoint* find_checkpoint(std::size_t pos) const;
-		Node* find_child(std::size_t pos);
-		Node* add_child(std::size_t pos, std::size_t max_pos);
+		Node* find_child(const void* expression, std::size_t pos);
+		Node* add_child(const void* expression, std::size_t pos, std::size_t max_pos);
 		void invalidate(std::size_t pos);
 	};
 private:

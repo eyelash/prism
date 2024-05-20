@@ -53,7 +53,7 @@ public:
 	}
 };
 
-Cache::Node::Node(std::size_t start_pos, std::size_t start_max_pos): start_pos(start_pos), start_max_pos(start_max_pos) {}
+Cache::Node::Node(const void* expression, std::size_t start_pos, std::size_t start_max_pos): expression(expression), start_pos(start_pos), start_max_pos(start_max_pos) {}
 std::size_t Cache::Node::get_last_checkpoint() const {
 	if (checkpoints.empty()) {
 		return start_pos;
@@ -72,17 +72,20 @@ const Cache::Checkpoint* Cache::Node::find_checkpoint(std::size_t pos) const {
 	}
 	return nullptr;
 }
-Cache::Node* Cache::Node::find_child(std::size_t pos) {
+Cache::Node* Cache::Node::find_child(const void* expression, std::size_t pos) {
 	auto iter = std::lower_bound(children.begin(), children.end(), pos, [](const Node& child, std::size_t pos) {
 		return child.start_pos < pos;
 	});
-	if (iter != children.end() && iter->start_pos == pos) {
-		return &*iter;
+	while (iter != children.end() && iter->start_pos == pos) {
+		if (iter->expression == expression) {
+			return &*iter;
+		}
+		++iter;
 	}
 	return nullptr;
 }
-Cache::Node* Cache::Node::add_child(std::size_t pos, std::size_t max_pos) {
-	children.emplace_back(pos, max_pos);
+Cache::Node* Cache::Node::add_child(const void* expression, std::size_t pos, std::size_t max_pos) {
+	children.emplace_back(expression, pos, max_pos);
 	return &children.back();
 }
 void Cache::Node::invalidate(std::size_t pos) {
@@ -102,7 +105,7 @@ void Cache::Node::invalidate(std::size_t pos) {
 		children.back().invalidate(pos);
 	}
 }
-Cache::Cache(): root_node(0, 0) {}
+Cache::Cache(): root_node(nullptr, 0, 0) {}
 Cache::Node* Cache::get_root_node() {
 	return &root_node;
 }
@@ -159,24 +162,25 @@ public:
 
 class Scope {
 	Scope* parent_scope;
+	const void* expression;
 	std::size_t pos;
 	std::size_t max_pos;
 	Cache::Node* node;
 	std::size_t get_last_checkpoint() const {
 		return node ? node->get_last_checkpoint() : pos;
 	}
-	Cache::Node* find_child(std::size_t pos) const {
-		return node ? node->find_child(pos) : nullptr;
+	Cache::Node* find_child(const void* expression, std::size_t pos) const {
+		return node ? node->find_child(expression, pos) : nullptr;
 	}
 	Cache::Node* ensure_node() {
 		if (node == nullptr) {
-			node = parent_scope->ensure_node()->add_child(pos, max_pos);
+			node = parent_scope->ensure_node()->add_child(expression, pos, max_pos);
 		}
 		return node;
 	}
 public:
-	Scope(Cache::Node* node): parent_scope(nullptr), pos(0), max_pos(0), node(node) {}
-	Scope(Scope* parent_scope, std::size_t pos, std::size_t max_pos): parent_scope(parent_scope), pos(pos), max_pos(max_pos), node(parent_scope->find_child(pos)) {}
+	Scope(Cache::Node* node): parent_scope(nullptr), expression(nullptr), pos(0), max_pos(0), node(node) {}
+	Scope(Scope* parent_scope, const void* expression, std::size_t pos, std::size_t max_pos): parent_scope(parent_scope), expression(expression), pos(pos), max_pos(max_pos), node(parent_scope->find_child(expression, pos)) {}
 	Scope* get_parent_scope() const {
 		return parent_scope;
 	}
@@ -234,8 +238,8 @@ public:
 		f();
 		current_scope = nullptr;
 	}
-	template <class F> Result add_scope(F f) {
-		Scope scope(current_scope, input.get_position(), std::max(max_pos, input.get_position()));
+	template <class F> Result add_scope(const void* expression, F f) {
+		Scope scope(current_scope, expression, input.get_position(), std::max(max_pos, input.get_position()));
 		current_scope = &scope;
 		const Result result = f();
 		current_scope = scope.get_parent_scope();
@@ -412,7 +416,7 @@ public:
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
 		if constexpr (can_checkpoint && MAX_REPETITIONS != 1) {
-			return context.add_scope([&]() {
+			return context.add_scope(this, [&]() {
 				context.skip_to_checkpoint();
 				for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
 					const Result result = t.template parse<can_checkpoint>(context);
