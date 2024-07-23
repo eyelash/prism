@@ -1,4 +1,5 @@
 #include "prism.hpp"
+#include <cstring>
 
 #include "themes/one_dark.hpp"
 #include "themes/monokai.hpp"
@@ -10,7 +11,7 @@ constexpr Theme themes[] = {
 
 const Theme& prism::get_theme(const char* name) {
 	for (const Theme& theme: themes) {
-		if (StringView(theme.name) == name) {
+		if (strcmp(theme.name, name) == 0) {
 			return theme;
 		}
 	}

@@ -4,66 +4,7 @@
 #include <utility>
 #include <algorithm>
 #include <vector>
-
-class StringView {
-	const char* data_;
-	std::size_t size_;
-public:
-	static constexpr int strncmp(const char* s0, const char* s1, std::size_t n) {
-		return n == 0 ? 0 : *s0 != *s1 ? *s0 - *s1 : strncmp(s0 + 1, s1 + 1, n - 1);
-	}
-	static constexpr const char* strchr(const char* s, char c) {
-		return *s == c ? s : *s == '\0' ? nullptr : strchr(s + 1, c);
-	}
-	static constexpr std::size_t strlen(const char* s) {
-		return strchr(s, '\0') - s;
-	}
-	constexpr StringView(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
-	constexpr StringView(const char* s): StringView(s, strlen(s)) {}
-	constexpr StringView(): StringView(nullptr, 0) {}
-	constexpr const char* data() const {
-		return data_;
-	}
-	constexpr std::size_t size() const {
-		return size_;
-	}
-	constexpr char operator [](std::size_t i) const {
-		return data_[i];
-	}
-	constexpr char operator *() const {
-		return *data_;
-	}
-	constexpr operator bool() const {
-		return data_ != nullptr;
-	}
-	constexpr bool operator ==(const StringView& s) const {
-		return size_ != s.size_ ? false : strncmp(data_, s.data_, size_) == 0;
-	}
-	constexpr bool operator !=(const StringView& s) const {
-		return !operator ==(s);
-	}
-	constexpr bool operator <(const StringView& s) const {
-		return size_ != s.size_ ? size_ < s.size_ : strncmp(data_, s.data_, size_) < 0;
-	}
-	constexpr const char* begin() const {
-		return data_;
-	}
-	constexpr const char* end() const {
-		return data_ + size_;
-	}
-	constexpr StringView substr(std::size_t pos, std::size_t count) const {
-		return StringView(data_ + pos, count);
-	}
-	constexpr StringView substr(std::size_t pos) const {
-		return StringView(data_ + pos, size_ - pos);
-	}
-	constexpr bool starts_with(const StringView& s) const {
-		return size_ < s.size_ ? false : strncmp(data_, s.data_, s.size_) == 0;
-	}
-	constexpr bool ends_with(const StringView& s) const {
-		return size_ < s.size_ ? false : strncmp(data_ + size_ - s.size_, s.data_, s.size_) == 0;
-	}
-};
+#include <string>
 
 class Color {
 	static constexpr float hue_function(float h) {
@@ -187,7 +128,7 @@ class StringInput final: public Input {
 	std::size_t size_;
 public:
 	constexpr StringInput(const char* data_, std::size_t size_): data_(data_), size_(size_) {}
-	constexpr StringInput(const char* s): StringInput(s, StringView::strlen(s)) {}
+	constexpr StringInput(const char* s): StringInput(s, std::char_traits<char>::length(s)) {}
 	constexpr std::size_t size() const {
 		return size_;
 	}
