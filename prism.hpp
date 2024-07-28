@@ -82,7 +82,6 @@ class Range {
 public:
 	std::size_t start;
 	std::size_t end;
-	Range() {}
 	constexpr Range(std::size_t start, std::size_t end): start(start), end(end) {}
 	constexpr Range operator |(const Range& range) const {
 		return Range(std::min(start, range.start), std::max(end, range.end));
@@ -98,10 +97,9 @@ public:
 class Span: public Range {
 public:
 	int style;
-	Span() {}
 	constexpr Span(std::size_t start, std::size_t end, int style): Range(start, end), style(style) {}
 	constexpr bool operator ==(const Span& span) const {
-		return start == span.start && end == span.end && style == span.style;
+		return std::tie(start, end, style) == std::tie(span.start, span.end, span.style);
 	}
 	constexpr bool operator <(const Span& span) const {
 		return std::tie(start, end, style) < std::tie(span.start, span.end, span.style);
@@ -136,7 +134,7 @@ public:
 		return {{nullptr, data_, size_}, 0};
 	}
 	Chunk get_next_chunk(const void* chunk) const override {
-		return {nullptr, nullptr, 0};
+		return {nullptr, "", 0};
 	}
 };
 
@@ -164,6 +162,7 @@ private:
 	Node root_node;
 public:
 	Cache();
+	~Cache();
 	Node* get_root_node();
 	void invalidate(std::size_t pos);
 };

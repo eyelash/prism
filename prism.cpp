@@ -102,11 +102,15 @@ void Cache::Node::invalidate(std::size_t pos) {
 		});
 		children.erase(iter, children.end());
 	}
-	if (!children.empty() && children.back().start_pos >= get_last_checkpoint()) {
-		children.back().invalidate(pos);
+	if (children.size() > 0) {
+		Cache::Node& last_child = children.back();
+		if (last_child.start_pos >= get_last_checkpoint()) {
+			last_child.invalidate(pos);
+		}
 	}
 }
 Cache::Cache(): root_node(nullptr, 0, 0) {}
+Cache::~Cache() = default;
 Cache::Node* Cache::get_root_node() {
 	return &root_node;
 }
@@ -119,13 +123,7 @@ class Spans {
 	std::size_t start;
 	int style;
 	void emit_span(std::size_t end, const Range& window) {
-		if (start == end) {
-			return;
-		}
-		if (end <= window.start || start >= window.end) {
-			return;
-		}
-		if (style == Style::DEFAULT) {
+		if (start == end || end <= window.start || start >= window.end || style == Style::DEFAULT) {
 			return;
 		}
 		if (spans.size() > 0) {
@@ -155,7 +153,7 @@ public:
 		return {spans.size(), start, style};
 	}
 	void restore(const SavePoint& save_point) {
-		spans.resize(save_point.spans_size);
+		spans.erase(spans.begin() + save_point.spans_size, spans.end());
 		start = save_point.start;
 		style = save_point.style;
 	}
