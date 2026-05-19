@@ -414,10 +414,10 @@ public:
 			}
 		}
 		static_assert(MAX_REPETITIONS != 0 || !T::always_succeeds(), "infinite loop in grammar");
-		if constexpr (can_checkpoint && MAX_REPETITIONS != 1) {
+		if constexpr (can_checkpoint && MAX_REPETITIONS == 0) {
 			return context.add_scope(this, [&]() {
 				context.skip_to_checkpoint();
-				for (std::size_t i = MIN_REPETITIONS; (MAX_REPETITIONS == 0 || i < MAX_REPETITIONS); ++i) {
+				while (true) {
 					const Result result = t.template parse<can_checkpoint>(context);
 					if (result != Result::SUCCESS) {
 						return result == Result::FAILURE ? Result::SUCCESS : result;
@@ -426,7 +426,6 @@ public:
 						return Result::PARTIAL_SUCCESS;
 					}
 				}
-				return Result::SUCCESS;
 			});
 		}
 		else {
@@ -612,7 +611,8 @@ template <class parse_file_name, class parse> constexpr Language language(const 
 			return reference<parse_file_name>().template parse<false>(context) == Result::SUCCESS;
 		},
 		[](ParseContext& context) {
-			root_scope(reference<parse>()).template parse<true>(context);
+			static constexpr auto parse_root = root_scope(reference<parse>());
+			parse_root.template parse<true>(context);
 		}
 	};
 }
