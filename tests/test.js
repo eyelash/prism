@@ -53,3 +53,11 @@ function controlFlow(b, n) {
             break;
     }
 }
+
+class C {
+    constructor(n) {
+        this.n = n;
+    }
+}
+
+let c = new C(0);

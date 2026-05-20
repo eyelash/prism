@@ -40,3 +40,9 @@ def control_flow(b, n):
             pass
         case _:
             pass
+
+class C:
+    def __init__(self, n):
+        self.n = n
+
+c = C(0)

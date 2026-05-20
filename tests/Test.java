@@ -60,5 +60,14 @@ public class Test {
         }
     }
 
-    public static void main(String[] args) {}
+    public static class C {
+        int n;
+        public C(int n) {
+            this.n = n;
+        }
+    }
+
+    public static void main(String[] args) {
+        C c = new C(0);
+    }
 }

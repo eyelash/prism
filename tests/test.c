@@ -59,6 +59,13 @@ static void control_flow(int b, int n) {
     }
 }
 
+struct C {
+    int n;
+};
+
 int main() {
+    struct C c = {
+        .n = 0
+    };
     return 0;
 }

@@ -46,4 +46,12 @@ fn control_flow(b: bool, n: i32) {
     }
 }
 
-fn main() {}
+struct C {
+    n: i32,
+}
+
+fn main() {
+    let c = C {
+        n: 0
+    };
+}

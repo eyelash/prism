@@ -43,6 +43,11 @@ controlFlow b n = do
         0 -> return ()
         _ -> return ()
 
+data C = C {
+    n :: Int
+}
+
 main :: IO ()
 main = do
+    let c = C 0
     return ()
