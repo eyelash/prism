@@ -39,7 +39,7 @@ static void numbers() {
     1'2;
 }
 
-static void control_flow(int b) {
+static void control_flow(int b, int n) {
     if (b) {
         return;
     }
@@ -50,6 +50,12 @@ static void control_flow(int b) {
         while (b) {
             break;
         }
+    }
+    switch (n) {
+        case 0:
+            break;
+        default:
+            break;
     }
 }
 

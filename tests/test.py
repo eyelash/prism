@@ -27,7 +27,7 @@ def numbers():
     # separators
     1_2
 
-def control_flow(b):
+def control_flow(b, n):
     if b:
         return
     else:
@@ -35,3 +35,8 @@ def control_flow(b):
             continue
         while b:
             break
+    match n:
+        case 0:
+            pass
+        case _:
+            pass

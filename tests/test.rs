@@ -29,7 +29,7 @@ fn numbers() {
     1_2;
 }
 
-fn control_flow(b: bool) {
+fn control_flow(b: bool, n: i32) {
     if b {
         return;
     } else {
@@ -39,6 +39,10 @@ fn control_flow(b: bool) {
         while b {
             break;
         }
+    }
+    match n {
+        0 => {}
+        _ => {}
     }
 }
 

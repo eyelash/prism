@@ -33,12 +33,15 @@ numbers = do
 
     return ()
 
-controlFlow :: Bool -> IO ()
-controlFlow b =
+controlFlow :: Bool -> Int -> IO ()
+controlFlow b n = do
     if b then
         return ()
     else
         forM_ [0..9] (\i -> return ())
+    case n of
+        0 -> return ()
+        _ -> return ()
 
 main :: IO ()
 main = do

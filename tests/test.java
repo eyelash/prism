@@ -43,7 +43,7 @@ public class Test {
         n = 1_2;
     }
 
-    public static void controlFlow(boolean b) {
+    public static void controlFlow(boolean b, int n) {
         if (b) {
             return;
         }
@@ -54,6 +54,12 @@ public class Test {
             while (b) {
                 break;
             }
+        }
+        switch (n) {
+            case 0:
+                break;
+            default:
+                break;
         }
     }
 

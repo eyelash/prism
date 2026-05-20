@@ -34,7 +34,7 @@ function numbers() {
     1_2;
 }
 
-function controlFlow(b) {
+function controlFlow(b, n) {
     if (b) {
         return;
     }
@@ -45,5 +45,11 @@ function controlFlow(b) {
         while (b) {
             break;
         }
+    }
+    switch (n) {
+        case 0:
+            break;
+        default:
+            break;
     }
 }
