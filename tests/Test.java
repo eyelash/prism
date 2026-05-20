@@ -1,20 +1,17 @@
-// single line comment
-
-/*
-multi
-line
-comment
-*/
-
 public class Test {
-    public static void strings() {
-        String s;
+    // single line comment
+
+    /*
+    multi
+    line
+    comment
+    */
+
+    public static void strings(String s) {
         s = "hello";
     }
 
-    public static void numbers() {
-        Number n;
-
+    public static void numbers(Number n) {
         // integers
         n = 1;
         n = 0x1;
