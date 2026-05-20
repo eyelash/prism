@@ -1,7 +1,16 @@
 // https://docs.python.org/3/reference/lexical_analysis.html
 
 constexpr auto python_comment = sequence('#', repetition(any_char_but('\n')));
-constexpr auto python_escape = sequence('\\', any_char());
+constexpr auto python_escape = sequence('\\', choice(
+	'a', 'b', 't', 'n', 'v', 'f', 'r',
+	'"', '\'', '\\',
+	'\n',
+	repetition<1, 3>(range('0', '7')),
+	sequence('x', repetition<2, 2>(hex_digit)),
+	sequence('u', repetition<4, 4>(hex_digit)),
+	sequence('U', repetition<8, 8>(hex_digit)),
+	sequence("N{", one_or_more(choice(range('a', 'z'), range('A', 'Z'), ' ', '-')), '}')
+));
 constexpr auto python_string = choice(
 	sequence(
 		"\"\"\"",
